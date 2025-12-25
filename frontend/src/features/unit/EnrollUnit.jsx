@@ -3,152 +3,171 @@ import { useForm } from "react-hook-form";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "react-toastify";
+import { FaTrashAlt, FaCheckCircle } from "react-icons/fa";
+
 import FormTitle from "../../components/FormTitle";
 import Label from "../../components/Label";
+import Input from "../../components/Input";
+import Alert from "../../components/Alert";
+import Spinner from "../../components/Spinner";
+import DataList from "../../components/DataList";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
-import Spinner from "../../components/Spinner";
-import Input from "../../components/Input";
 
 const validationSchema = yup.object().shape({
   studentId: yup.string().required("Student ID is required"),
-  unitCode: yup.string().required("Unit code is required"),
-  session: yup.string().required("Session is required"),
+  unitCode: yup.string().required("Unit is required"),
+  session: yup.string().required("Academic session is required"),
 });
 
 const EnrollUnit = () => {
   const axios = useAxiosPrivate();
   const { user } = useAuth();
+
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [units, setUnits] = useState([]);
 
   const {
     handleSubmit,
     register,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(validationSchema),
+    mode: "onTouched",
     defaultValues: {
       studentId: user?.userId || "",
+      session: "2024/2025",
     },
   });
+
+  const selectedUnitCode = watch("unitCode");
+  const currentUnit = units.find((u) => u.unitCode === selectedUnitCode);
 
   useEffect(() => {
     const fetchUnits = async () => {
       try {
         const res = await axios.get("/api/units");
         setUnits(res.data.data || []);
-      } catch (error) {
-        console.error("Failed to fetch units:", error);
+      } catch {
+        toast.error("Failed to load units");
       }
     };
     fetchUnits();
   }, [axios]);
 
   const onSubmit = async (data) => {
+    setError(null);
     setIsLoading(true);
+
     try {
       const res = await axios.post("/api/enrollments", data);
-      toast.success(res.data.message || "Enrollment created successfully");
-      reset();
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to create enrollment"
-      );
+      toast.success(res.data.message || "Student enrolled successfully");
+
+      reset({
+        studentId: "",
+        unitCode: "",
+        session: "2024/2025",
+      });
+    } catch (err) {
+      const errMsg = err.response?.data?.message || "Enrollment failed";
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <React.Fragment>
-      <form
-        className="w-full grid gap-6 p-2 shadow-sm"
-        onSubmit={handleSubmit(onSubmit)}
-      >
-        <FormTitle>Enroll Student in Unit</FormTitle>
+    <div className="max-w-4xl mx-auto bg-white p-6 rounded-2xl shadow-md border border-gray-100">
+      <FormTitle>Enroll Student to Unit</FormTitle>
 
-        <div className="wrapper grid sm:grid-cols-1 md:grid-cols-2 gap-6 p-2">
+      <form onSubmit={handleSubmit(onSubmit)} className="pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
           {/* Student ID */}
-          <div>
+          <div className="space-y-1">
             <Label
-              label="Student ID"
+              label="Student Admission No"
               error={errors.studentId?.message}
-              htmlFor="studentId"
             />
             <Input
-              type="text"
               name="studentId"
               register={register}
-              placeholder="Student ID"
+              error={errors.studentId}
+              placeholder="BS13/001/21"
             />
           </div>
 
-          {/* Unit Code */}
-          <div>
-            <Label
-              label="Unit Code"
-              error={errors.unitCode?.message}
-              htmlFor="unitCode"
-            />
-            <select
-              className="bg-gray-50 border border-gray-300 text-sm rounded-lg
-                focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5
-                dark:bg-gray-700 dark:border-gray-600 dark:text-white
-                dark:focus:ring-blue-500 dark:focus:border-blue-500"
-              {...register("unitCode")}
-            >
-              <option value="">Select Unit</option>
-              {units.map((unit) => (
-                <option key={unit.unitCode} value={unit.unitCode}>
-                  {unit.unitCode}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Session */}
-          <div>
-            <Label
-              label="Session"
-              error={errors.session?.message}
-              htmlFor="session"
-            />
+          {/* Academic Session */}
+          <div className="space-y-1">
+            <Label label="Academic Session" error={errors.session?.message} />
             <Input
-              type="text"
               name="session"
               register={register}
-              placeholder="e.g., 2024/2025"
+              error={errors.session}
+              placeholder="2024/2025"
             />
+          </div>
+
+          {/* Unit */}
+          <div className="space-y-1 md:col-span-2">
+            <Label label="Unit" error={errors.unitCode?.message} />
+            <DataList
+              name="unitCode"
+              register={register}
+              error={errors.unitCode}
+              placeholder="Type to search unit..."
+              options={units.map((u) => u.unitCode)}
+              required
+            />
+
+            {/* Unit Preview */}
+            {currentUnit && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg flex justify-between items-center">
+                <div>
+                  <p className="text-[10px] font-bold text-blue-600 uppercase">
+                    Selected Unit
+                  </p>
+                  <p className="text-sm font-semibold text-gray-800">
+                    {currentUnit.unitName}
+                  </p>
+                </div>
+                <div className="text-[11px] text-gray-500">
+                  Trainer ID:{" "}
+                  <span className="font-mono">{currentUnit.staffId}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="logo flex justify-center mt-5">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={`flex items-center justify-center gap-2 text-white ${
-              isLoading
-                ? "bg-green-500 cursor-not-allowed"
-                : "bg-green-700 hover:bg-green-800"
-            } focus:ring-4 focus:outline-none focus:ring-green-300
-              font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5
-              text-center dark:bg-green-600 dark:hover:bg-green-700
-              dark:focus:ring-green-800`}
-          >
-            {isLoading ? (
-              <>
-                <Spinner size="small" color="white" />
-                <span>Enrolling...</span>
-              </>
-            ) : (
-              "Enroll"
-            )}
-          </button>
+        {/* Footer */}
+        <div className="mt-8 pt-6 border-t border-gray-100">
+          <Alert error={error} setError={setError} />
+
+          <div className="flex flex-col sm:flex-row justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => reset()}
+              className="flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              <FaTrashAlt size={14} />
+              Clear
+            </button>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="flex items-center justify-center gap-2 px-10 py-2.5 text-sm font-medium text-white bg-[#00966d] hover:bg-[#007a58] rounded-lg shadow-sm disabled:opacity-70 transition-all"
+            >
+              {isLoading ? <Spinner /> : "Confirm Enrollment"}
+            </button>
+          </div>
         </div>
       </form>
-    </React.Fragment>
+    </div>
   );
 };
 

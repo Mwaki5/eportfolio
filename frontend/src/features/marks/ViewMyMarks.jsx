@@ -1,191 +1,201 @@
 import React, { useState, useEffect } from "react";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
-import useAuth from "../../hooks/useAuth";
 import Spinner from "../../components/Spinner";
 import { toast } from "react-toastify";
-import { FaGraduationCap, FaChartLine, FaClipboardList, FaAward } from "react-icons/fa";
+import useAuth from "../../hooks/useAuth";
 
-const ViewMyMarks = () => {
+const ViewStudentMarks = () => {
   const axios = useAxiosPrivate();
   const { user } = useAuth();
-  const [marks, setMarks] = useState([]);
+
+  const [records, setRecords] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [selectedSession, setSelectedSession] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchMarks = async () => {
-      if (!user?.userId) return;
-
-      setIsLoading(true);
-      setError(null);
-      try {
-        const res = await axios.get(`/api/marks/student/${user.userId}`);
-        setMarks(res.data.data || []);
-      } catch (error) {
-        setError(error.response?.data?.message || "Failed to fetch marks");
-        toast.error("Failed to load marks");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchMarks();
-  }, [axios, user?.userId]);
-
-  const calculateTotal = (mark) => {
-    const theoryTotal =
-      (mark.theory1 || 0) + (mark.theory2 || 0) + (mark.theory3 || 0);
-    const pracTotal = (mark.prac1 || 0) + (mark.prac2 || 0) + (mark.prac3 || 0);
-    return theoryTotal + pracTotal;
-  };
-
-  const getGrade = (total) => {
-    if (total >= 70) return { grade: "A", color: "text-green-600" };
-    if (total >= 60) return { grade: "B", color: "text-blue-600" };
-    if (total >= 50) return { grade: "C", color: "text-yellow-600" };
-    if (total >= 40) return { grade: "D", color: "text-orange-600" };
-    return { grade: "F", color: "text-red-600" };
-  };
-
-  if (isLoading) {
-    return (
-      <div className="w-full flex justify-center items-center py-12">
-        <Spinner size="large" />
-      </div>
+  /* ===================== HELPERS ===================== */
+  const average = (...values) => {
+    const valid = values.filter(
+      (v) => v !== null && v !== undefined && !isNaN(v)
     );
-  }
+    if (valid.length === 0) return "-";
+    return (valid.reduce((a, b) => a + Number(b), 0) / valid.length).toFixed(1);
+  };
 
+  /* ===================== FETCH ALL MARKS ===================== */
+  const fetchAllMarks = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await axios.get(
+        `/api/marks/${encodeURIComponent(user.userId)}`
+      );
+      setRecords(res.data.data || []);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load marks");
+      toast.error("Failed to fetch marks");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /* ===================== FETCH MARKS BY SESSION ===================== */
+  const fetchMarksBySession = async (session) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await axios.get(
+        `/api/marks/student/${encodeURIComponent(
+          user.userId
+        )}/session/${encodeURIComponent(session)}`
+      );
+      setRecords(res.data.data || []);
+    } catch (err) {
+      setError("Failed to load marks for session");
+      toast.error("Failed to fetch session marks");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /* ===================== FETCH SESSIONS ===================== */
+  const fetchSessions = async () => {
+    try {
+      const res = await axios.get(
+        `/api/enrollments/sessions/${encodeURIComponent(user.userId)}`
+      );
+      setSessions(res.data.data || []);
+    } catch (err) {
+      toast.error("Failed to load sessions");
+    }
+  };
+
+  /* ===================== EFFECTS ===================== */
+  useEffect(() => {
+    if (user?.userId) {
+      fetchAllMarks();
+      fetchSessions();
+    }
+  }, [user?.userId]);
+
+  /* ===================== HANDLERS ===================== */
+  const handleSessionChange = (e) => {
+    const session = e.target.value;
+    setSelectedSession(session);
+
+    if (!session) {
+      fetchAllMarks();
+    } else {
+      fetchMarksBySession(session);
+    }
+  };
+
+  /* ===================== UI ===================== */
   return (
-    <div className="w-full">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-          My Marks
-        </h2>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
-          View all your marks and grades
+    <div className="w-full space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <p className="text-xs text-gray-500">
+          Student theory and practical performance overview.
         </p>
+
+        {/* Session Filter */}
+        <select
+          value={selectedSession}
+          onChange={handleSessionChange}
+          className="px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#00966d]"
+        >
+          <option value="">All Sessions</option>
+          {sessions.map((s, idx) => (
+            <option key={idx} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
       </div>
 
       {error && (
-        <div className="bg-orange-100 border border-orange-400 text-orange-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded text-sm">
           {error}
         </div>
       )}
 
-      {marks.length === 0 && !isLoading ? (
-        <div className="bg-white border-2 border-dashed border-green-200 rounded-2xl p-12 text-center max-w-2xl mx-auto">
-          <div className="mb-6">
-            <div className="inline-flex items-center justify-center w-24 h-24 bg-green-100 rounded-full mb-4">
-              <FaClipboardList className="text-5xl text-green-600" />
-            </div>
-          </div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-2">
-            No Marks Available Yet
-          </h3>
-          <p className="text-gray-600 mb-6 text-lg">
-            Your marks will appear here once your instructors have recorded them. Keep checking back to track your academic progress!
-          </p>
-          <div className="inline-flex items-center gap-2 px-6 py-3 bg-green-50 rounded-xl border border-green-200">
-            <FaAward className="text-green-600" />
-            <span className="text-green-700 font-medium">Marks will be updated by your instructors</span>
-          </div>
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-500 mb-3">What to expect?</p>
-            <div className="flex flex-wrap justify-center gap-3 text-xs text-gray-600">
-              <span className="px-3 py-1 bg-green-50 rounded-full">📝 Theory Marks</span>
-              <span className="px-3 py-1 bg-green-50 rounded-full">🔬 Practical Marks</span>
-              <span className="px-3 py-1 bg-green-50 rounded-full">📊 Overall Grades</span>
-              <span className="px-3 py-1 bg-green-50 rounded-full">🏆 Performance</span>
-            </div>
-          </div>
+      {/* Table */}
+      {isLoading ? (
+        <div className="flex flex-col items-center py-20 bg-white rounded-xl border">
+          <Spinner />
+          <p className="mt-4 text-gray-500 text-sm">Loading records...</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {marks.map((mark) => {
-            const total = calculateTotal(mark);
-            const { grade, color } = getGrade(total);
-            return (
-              <div
-                key={mark.id}
-                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 card-hover"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-green-100 dark:bg-green-900 p-3 rounded-lg">
-                      <FaChartLine className="text-green-600 dark:text-green-400 text-xl" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg text-gray-800 dark:text-white">
-                        {mark.Unit?.unitCode || mark.unitCode}
-                      </h3>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`text-2xl font-bold ${color}`}>{grade}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Total: {total}
-                    </div>
-                  </div>
-                </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-gray-50 border-b text-[10px] uppercase font-bold text-gray-500">
+              <tr>
+                <th className="px-4 py-4">Adm No</th>
+                <th className="px-4 py-4">Unit</th>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Theory 1
-                    </p>
-                    <p className="font-semibold text-gray-800 dark:text-white">
-                      {mark.theory1 ?? "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Theory 2
-                    </p>
-                    <p className="font-semibold text-gray-800 dark:text-white">
-                      {mark.theory2 ?? "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Theory 3
-                    </p>
-                    <p className="font-semibold text-gray-800 dark:text-white">
-                      {mark.theory3 ?? "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Practical 1
-                    </p>
-                    <p className="font-semibold text-gray-800 dark:text-white">
-                      {mark.prac1 ?? "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Practical 2
-                    </p>
-                    <p className="font-semibold text-gray-800 dark:text-white">
-                      {mark.prac2 ?? "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                      Practical 3
-                    </p>
-                    <p className="font-semibold text-gray-800 dark:text-white">
-                      {mark.prac3 ?? "N/A"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                <th className="px-4 py-4">T1</th>
+                <th className="px-4 py-4">T2</th>
+                <th className="px-4 py-4">T3</th>
+                <th className="px-4 py-4">Theory Avg</th>
+
+                <th className="px-4 py-4">P1</th>
+                <th className="px-4 py-4">P2</th>
+                <th className="px-4 py-4">P3</th>
+                <th className="px-4 py-4">Prac Avg</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-gray-50">
+              {records.length === 0 && (
+                <tr>
+                  <td
+                    colSpan="10"
+                    className="px-6 py-6 text-center text-gray-500"
+                  >
+                    No records found.
+                  </td>
+                </tr>
+              )}
+
+              {records.map((r) => (
+                <tr
+                  key={r.markId}
+                  className="hover:bg-green-50/30 transition-colors"
+                >
+                  <td className="px-4 py-3 text-xs font-mono font-semibold">
+                    {user?.userId}
+                  </td>
+
+                  <td className="px-4 py-3 text-sm font-semibold">
+                    {r.Unit?.unitCode} — {r.Unit?.unitName}
+                  </td>
+
+                  <td className="px-4 py-3">{r.theory1}</td>
+                  <td className="px-4 py-3">{r.theory2}</td>
+                  <td className="px-4 py-3">{r.theory3}</td>
+                  <td className="px-4 py-3 font-bold text-red-600">
+                    {average(r.theory1, r.theory2, r.theory3)}
+                  </td>
+
+                  <td className="px-4 py-3">{r.prac1}</td>
+                  <td className="px-4 py-3">{r.prac2}</td>
+                  <td className="px-4 py-3">{r.prac3}</td>
+                  <td className="px-4 py-3 font-bold text-red-600">
+                    {average(r.prac1, r.prac2, r.prac3)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
   );
 };
 
-export default ViewMyMarks;
-
+export default ViewStudentMarks;

@@ -4,28 +4,28 @@ module.exports = (sequelize, DataTypes) => {
   const Marks = sequelize.define(
     "Marks",
     {
-      id: {
+      markId: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: DataTypes.INTEGER,
       },
       studentId: {
-        type: DataTypes.STRING,
+        type: DataTypes.INTEGER,
         allowNull: false,
         references: {
           model: "Users",
-          key: "userId",
+          key: "id",
         },
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
-      unitCode: {
-        type: DataTypes.STRING,
+      unitId: {
+        type: DataTypes.INTEGER,
         allowNull: false,
         references: {
           model: "Units",
-          key: "unitCode",
+          key: "unitId",
         },
         onDelete: "CASCADE",
         onUpdate: "CASCADE",
@@ -71,7 +71,7 @@ module.exports = (sequelize, DataTypes) => {
 
   Marks.associate = (models) => {
     Marks.belongsTo(models.User, { foreignKey: "studentId", as: "User" });
-    Marks.belongsTo(models.Unit, { foreignKey: "unitCode", as: "Unit" });
+    Marks.belongsTo(models.Unit, { foreignKey: "unitId", as: "Unit" });
   };
 
   return Marks;

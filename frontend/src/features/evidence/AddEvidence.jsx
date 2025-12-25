@@ -26,7 +26,7 @@ const AddEvidence = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
-
+  const [units, setUnits] = useState([]);
   const {
     handleSubmit,
     register,
@@ -54,7 +54,7 @@ const AddEvidence = () => {
         data.append("file", formData.file[0]);
       }
 
-      const res = await axios.post("/api/evidence", data, {
+      const res = await axios.post("/api/evidences", data, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -69,6 +69,7 @@ const AddEvidence = () => {
       reset();
       setUploadProgress(0);
     } catch (error) {
+      console.log(error);
       const errorMessage =
         error.response?.data?.message || "Failed to upload evidence";
       toast.error(errorMessage);
@@ -78,6 +79,21 @@ const AddEvidence = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchUnits = async () => {
+      if (!user?.userId) return;
+      try {
+        const res = await axios.get(
+          `/api/enrollments/student/${encodeURIComponent(user.userId)}`
+        );
+        setUnits([res.data.data[0].Unit] || []);
+      } catch (error) {
+        console.log("Failed to fetch enrolled units:", error);
+      }
+    };
+    fetchUnits();
+  }, [axios, user?.userId]);
 
   useEffect(() => {
     if (error) {
@@ -90,24 +106,29 @@ const AddEvidence = () => {
   return (
     <div className="w-full">
       <form className="w-full" onSubmit={handleSubmit(onSubmit)}>
-        <fieldset className="personal grid gap-6 rounded-sm shadow-sm">
+        <fieldset className="personal grid gap-6 rounded-sm shadow-sm p-2">
           <FormTitle>Upload Evidence</FormTitle>
-          <div className="wrapper grid sm:grid-cols-1 md:grid-cols-2 gap-6 p-2">
-            {/* Unit Code */}
-            <div>
-              <Label
-                label="Unit Code"
-                error={errors.unitCode?.message}
-                htmlFor="unitCode"
-              />
-              <Input
-                type="text"
-                name="unitCode"
-                placeholder="e.g., CS101"
-                register={register}
-                required
-              />
-            </div>
+
+          {/* Unit Code */}
+
+          <div>
+            <Label
+              label="Unit Code"
+              error={errors.unitCode?.message}
+              htmlFor="unitCode"
+            />
+
+            <select
+              className="bg-white border-1 border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-all duration-200 p-3 w-full"
+              {...register("unitCode")}
+            >
+              <option value="">Select Unit</option>
+              {units.map((unit) => (
+                <option key={unit.unitCode} value={unit.unitCode}>
+                  {unit.unitName}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* File Upload - Full Width */}
@@ -131,7 +152,6 @@ const AddEvidence = () => {
           </div>
 
           <div className="wrapper grid sm:grid-cols-1 gap-6 p-2">
-
             {/* Description */}
             <div>
               <Label

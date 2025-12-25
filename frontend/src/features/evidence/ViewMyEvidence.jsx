@@ -26,7 +26,9 @@ const ViewMyEvidence = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const res = await axios.get(`/api/evidence/student/${user.userId}`);
+        const res = await axios.get(
+          `/api/evidences/student/${encodeURIComponent(user.userId)}`
+        );
         setEvidences(res.data.data || []);
       } catch (error) {
         setError(error.response?.data?.message || "Failed to fetch evidences");
@@ -99,7 +101,7 @@ const ViewMyEvidence = () => {
             Showcase your work, achievements, and progress!
           </p>
           <Link
-            to="/student/add-evidence"
+            to="/student/evidence/add"
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
           >
             <FaUpload />

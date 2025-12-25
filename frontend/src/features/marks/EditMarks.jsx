@@ -1,203 +1,196 @@
+import React, { useState, useEffect, useRef } from "react";
+import useAxiosPrivate from "../../hooks/useAxiosPrivate";
+import Spinner from "../../components/Spinner";
+import { toast } from "react-toastify";
+import { FaEdit, FaTrash, FaSearch } from "react-icons/fa";
+import UpdateMark from "./EditMarkModal"; // Modal component for editing marks
+import DeleteMark from "./DeleteMarkModal"; // Modal component for deleting marks
+import Input from "../../components/Input";
+import Button from "../../components/Button";
 
-import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
-import * as yup from 'yup'
-import { yupResolver } from '@hookform/resolvers/yup'
 const EditMarks = () => {
+  const axios = useAxiosPrivate();
+  const searchRef = useRef(null);
 
+  const [marks, setMarks] = useState([]);
+  const [selectedMark, setSelectedMark] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [error, setError] = useState(null);
 
-    const validationSchema = yup.object().shape({
-        username: yup.string().min(3, 'Username must be at least 3 characters').max(12, 'Username must be at most 12 characters').required('Username is required'),
-        password: yup.string().min(3, 'Password must be at least 3 characters').max(12, 'Password must be at most 12 characters').required('Password is required'),
-        regno: yup.string().required('Registration number is required'),
-        gender: yup.string().oneOf(['male', 'female'], 'Select a valid gender').required('Gender is required'),
-        firstname: yup.string().required('First name is required'),
-        othernames: yup.string().nullable(),
-        lastname: yup.string().required('Last name is required'),
-        nationality: yup.string().required('Nationality is required'),
-        dob: yup.date().required('Date of birth is required'),
-        phone: yup.string().required('Phone is required'),
-        profile: yup.mixed(),
-        county: yup.string().required('County is required'),
-    });
-
-    // Use react-hook-form with yupResolver for validation
-    const { handleSubmit, register, formState: { errors }, reset } = useForm({
-        resolver: yupResolver(validationSchema)
-    });
-    const [credentials, setCredentials] = useState(
-        {
-            username: null,
-            password: null,
-            regno: null,
-            gender: null,
-            firstname: null,
-            othername: null,
-            lastname: null,
-            nationality: null,
-            dob: null,
-            phone: null,
-            profile: null,
-
-        }
-    )
-
-    const [RegNo, setRegNo] = useState("")
-    const handleRegChange = (e) => {
-        setRegNo((prev) => prev = e.target.value)
-        errors[e.target.name] = null
+  // Fetch marks (all or filtered)
+  const fetchMarks = async (query = "") => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const endpoint = query
+        ? `/api/marks/search/${encodeURIComponent(query)}`
+        : "/api/marks";
+      const res = await axios.get(endpoint);
+      setMarks(res.data.data || []);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to fetch marks");
+      toast.error("Failed to load marks");
+      setMarks([]);
+    } finally {
+      setIsLoading(false);
     }
-    const handleChange = (e) => {
-        setCredentials((prev) => ({ ...prev, [e.target.name]: e.target.value }))
-        errors[e.target.name] = null
-    }
-    // Handles form submission and logs the form data
-    const onSubmit = (data) => {
-        console.log(credentials);
-    };
+  };
 
+  useEffect(() => {
+    fetchMarks();
+  }, [axios]);
 
-    return (
-        <React.Fragment>
-           <form className=" mb-10 w-full"
-                onSubmit={handleSubmit(onSubmit)}
-            >
-                <fieldset className=" border  border-gray-400 rounded-sm p-6">
-                    <legend className=' text-center text-2xl p-2'>
-                      <strong>Edit Marks Details</strong>
-                    </legend>
-                    <div className=" flex gap-x-4 justify-center items-center">
+  const handleSearch = () => {
+    fetchMarks(searchRef.current.value.trim());
+  };
 
-                        <label htmlFor="kinfname" className=" mb-2 text-sm font-medium  dark:text-white">Unit Id 
-                            <span className='text-red-500'>
-                                {errors.kinfname && errors.kinfname.message}
-                            </span>
-                        </label>
-                        <input type="text" id="kinothername"
-                            className="bg-gray-50 border border-gray-300  text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block  w-[300px] p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-300 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                            placeholder="Messy"
-                            {...register('Reg')}
-                            name='Reg'
-                            onChange={handleRegChange}
-                            required />
-                             <label htmlFor="kinfname" className=" mb-2 text-sm font-medium  dark:text-white">Student Id 
-                            <span className='text-red-500'>
-                                {errors.kinfname && errors.kinfname.message}
-                            </span>
-                        </label>
-                             <input type="text" id="kinothername"
-                            className="bg-gray-50 border border-gray-300  text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block  w-[300px] p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-300 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                            placeholder="Messy"
-                            {...register('Reg')}
-                            name='Reg'
-                            onChange={handleRegChange}
-                            required />
+  const handleEditClick = (mark) => {
+    setSelectedMark(mark);
+    setEditModalOpen(true);
+  };
 
-                        <button onClick={onSubmit} type="submit"
-                            className="block text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800">
-                            Submit
-                        </button>
-                    </div>
+  const handleDeleteClick = (mark) => {
+    setSelectedMark(mark);
+    setDeleteModalOpen(true);
+  };
 
-                </fieldset>
+  return (
+    <div className="w-full space-y-6">
+      {/* Header + Search */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <div>
+          <p className="text-xs text-gray-500">
+            Manage and update student marks.
+          </p>
+        </div>
 
-            </form>
+        <div className="relative group min-w-[320px]">
+          <input
+            ref={searchRef}
+            type="text"
+            placeholder="Search by student or unit"
+            className="w-full pl-10 pr-20 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-600 focus:bg-white outline-none transition-all"
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          />
+          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-green-600" />
+          <button
+            type="button"
+            onClick={handleSearch}
+            className="absolute right-1 top-1 bottom-1 px-4 bg-green-600 text-white text-xs font-semibold rounded-md hover:bg-green-700 transition-colors"
+          >
+            Search
+          </button>
+        </div>
+      </div>
 
-            {
-                RegNo.length >= 1? (
-                      <form className="pb-5 w-full "
-                        onSubmit={handleSubmit(onSubmit)}
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-sm text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Marks Table */}
+      {isLoading && marks.length === 0 ? (
+        <div className="flex flex-col justify-center items-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <Spinner />
+          <p className="mt-4 text-gray-500 text-sm animate-pulse">
+            Loading marks...
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-gray-50 border-b border-gray-100 text-xs uppercase font-bold text-gray-500 tracking-wider">
+                <tr>
+                  <th className="px-6 py-3">Admission no.</th>
+                  <th className="px-6 py-3">Student name</th>
+                  <th className="px-6 py-3">Unit</th>
+                  <th className="px-6 py-3">Th1</th>
+                  <th className="px-6 py-3">Th2</th>
+                  <th className="px-6 py-3">Th3</th>
+                  <th className="px-6 py-3">Pr1</th>
+                  <th className="px-6 py-3">Pr2</th>
+                  <th className="px-6 py-3">Pr3</th>
+                  <th className="px-6 py-3 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {marks.length === 0 && !isLoading ? (
+                  <tr>
+                    <td
+                      colSpan="5"
+                      className="px-6 py-4 text-center text-gray-500"
                     >
+                      No marks found.
+                    </td>
+                  </tr>
+                ) : (
+                  marks.map((mark) => (
+                    <tr
+                      key={mark.markId}
+                      className="hover:bg-green-50/30 transition-colors group"
+                    >
+                      <td className="px-6 py-4"> {mark.User?.userId} </td>
+                      <td className="px-6 py-4">
+                        {mark.User?.firstname} {mark.User?.lastname}
+                      </td>
+                      <td className="px-6 py-4">{mark.Unit?.unitCode}</td>
+                      <td className="px-6 py-4">{mark.theory1 ?? "-"}</td>
+                      <td className="px-6 py-4">{mark.theory2 ?? "-"}</td>
+                      <td className="px-6 py-4">{mark.theory3 ?? "-"}</td>
+                      <td className="px-6 py-4">{mark.prac1 ?? "-"}</td>
+                      <td className="px-6 py-4">{mark.prac2 ?? "-"}</td>
+                      <td className="px-6 py-4">{mark.prac3 ?? "-"}</td>
+                      <td className="px-6 py-4 text-center flex justify-center gap-3">
+                        <button
+                          onClick={() => handleEditClick(mark)}
+                          className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <FaEdit size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(mark)}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <FaTrash size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-                        <fieldset className="personal  border  border-gray-400 rounded-sm p-6">
-                            <legend className=' text-center text-2xl p-2'>
-                                <strong>Add New Marks</strong>
-                            </legend>
-                            <div className="wrapper  grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 ">
-                                <div className=''>
-                                    <label htmlFor="regno"
-                                        className="block mb-2 text-sm font-medium  dark:text-white">
-                                      Unit Id
-                                        <span className='text-red-500'>
-                                            {errors.regno && errors.regno.message}
-                                        </span>
-                                    </label>
-                                    <input type="text" id="regno"
-                                        className="bg-gray-50 border border-gray-300  text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-300 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                                        placeholder="John"
-                                        {...register('regno')}
-                                        name='regno'
-                                        onChange={handleChange}
-                                        required />
-                                </div>
+      {/* Modals */}
+      <UpdateMark
+        selectedMark={selectedMark}
+        isLoading={isLoading}
+        setIsLoading={setIsLoading}
+        marks={marks}
+        setMarks={setMarks}
+        editModalOpen={editModalOpen}
+        setEditModalOpen={setEditModalOpen}
+      />
+      <DeleteMark
+        selectedMark={selectedMark}
+        isLoading={isLoading}
+        setIsLoading={setIsLoading}
+        marks={marks}
+        setMarks={setMarks}
+        deleteModalOpen={deleteModalOpen}
+        setDeleteModalOpen={setDeleteModalOpen}
+      />
+    </div>
+  );
+};
 
-                                <div className=''>
-                                    <label htmlFor="firstname" className="block mb-2 text-sm font-medium  dark:text-white">Registration Number
-                                        <span className='text-red-500'>
-                                            {errors.firstname && errors.firstname.message}
-                                        </span>
-                                    </label>
-                                    <input type="text" id="firstname"
-                                        className="bg-gray-50 border border-gray-300  text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-300 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                                        placeholder="John"
-                                        {...register('firstname')}
-                                        name='firstname'
-                                        onChange={handleChange}
-                                        required />
-                                </div>
-                                <div className=''>
-                                    <label htmlFor="firstname" className="block mb-2 text-sm font-medium  dark:text-white">Marks
-                                        <span className='text-red-500'>
-                                            {errors.firstname && errors.firstname.message}
-                                        </span>
-                                    </label>
-                                    <input type="text" id="firstname"
-                                        className="bg-gray-50 border border-gray-300  text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-300 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                                        placeholder="John"
-                                        {...register('firstname')}
-                                        name='firstname'
-                                        onChange={handleChange}
-                                        required />
-                                </div>
-
-                                    <div className=''>
-                                    <label htmlFor="gender" className="block mb-2 text-sm font-medium  dark:text-white">Assessment No
-                                        <span className='text-red-500'>
-                                            {errors.gender && errors.gender.message}
-                                        </span>
-                                    </label>
-                                    <select id='gender' className="bg-gray-50 border border-gray-300  text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-300 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                                        {...register('gender')}
-                                        name='gender'
-                                        onChange={handleChange}
-                                        required>
-                                        <option >Assessment No.</option>
-                                        <option value='male'>1</option>
-                                        <option value='female'>2</option>
-                                    </select>
-
-                                </div>
-                              
-                            </div>
-                            <div className="logo flex justify-center mt-5 ">
-                                <button onClick={onSubmit} type="submit"
-                                    className="block text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800">
-                                    Submit
-                                </button>
-
-                            </div>
-                        </fieldset>
-
-                    </form>
-                ):(
-                    <div className='bg-red-400 w-full text-center rounded-sm'>
-                    <p className="p-5">Fill in Department Number You want to Edit</p>
-                    </div>
-                )
-            }
-        </React.Fragment>
-    )
-}
-
-export default EditMarks
+export default EditMarks;

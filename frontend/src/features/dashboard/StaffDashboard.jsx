@@ -34,22 +34,19 @@ const StaffDashboard = () => {
           axios.get("/api/marks"),
         ]);
 
-        const myUnits = units.data.data?.filter(
-          (unit) => unit.staffId === user.userId
-        ) || [];
+        const myUnits =
+          units.data.data?.filter((unit) => unit.staffId === user.userId) || [];
 
         const unitCodes = myUnits.map((u) => u.unitCode);
-        const myEnrollments = enrollments.data.data?.filter((e) =>
-          unitCodes.includes(e.unitCode)
-        ) || [];
+        const myEnrollments =
+          enrollments.data.data?.filter((e) =>
+            unitCodes.includes(e.unitCode)
+          ) || [];
 
-        const myMarks = marks.data.data?.filter((m) =>
-          unitCodes.includes(m.unitCode)
-        ) || [];
+        const myMarks =
+          marks.data.data?.filter((m) => unitCodes.includes(m.unitCode)) || [];
 
-        const uniqueStudents = new Set(
-          myEnrollments.map((e) => e.studentId)
-        );
+        const uniqueStudents = new Set(myEnrollments.map((e) => e.studentId));
 
         setMetrics({
           myUnits: myUnits.length,
@@ -151,13 +148,13 @@ const StaffDashboard = () => {
           </h2>
           <div className="space-y-2">
             <Link
-              to="/staff/add-unit"
+              to="/staff/unit/add"
               className="block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center transition-colors"
             >
               Add New Unit
             </Link>
             <Link
-              to="/staff/enroll-new"
+              to="/staff/enrollment/add"
               className="block px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-center transition-colors"
             >
               Enroll Student
@@ -191,4 +188,3 @@ const StaffDashboard = () => {
 };
 
 export default StaffDashboard;
-

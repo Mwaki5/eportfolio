@@ -4,38 +4,45 @@ module.exports = (sequelize, DataTypes) => {
   const Enrollment = sequelize.define(
     "Enrollment",
     {
-      id: {
+      enrollmentId: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: DataTypes.INTEGER,
       },
+
       studentId: {
-        type: DataTypes.STRING,
+        type: DataTypes.INTEGER,
         allowNull: false,
         references: {
           model: "Users",
-          key: "userId",
+          key: "id",
         },
         onDelete: "CASCADE",
+        onUpdate: "CASCADE",
       },
-      unitCode: {
-        type: DataTypes.STRING,
+
+      unitId: {
+        type: DataTypes.INTEGER,
         allowNull: false,
         references: {
           model: "Units",
-          key: "unitCode",
+          key: "unitId",
         },
         onDelete: "CASCADE",
+        onUpdate: "CASCADE",
       },
+
       session: {
         type: DataTypes.STRING,
         allowNull: false,
       },
+
       createdAt: {
         allowNull: false,
         type: DataTypes.DATE,
       },
+
       updatedAt: {
         allowNull: false,
         type: DataTypes.DATE,
@@ -49,7 +56,7 @@ module.exports = (sequelize, DataTypes) => {
 
   Enrollment.associate = (models) => {
     Enrollment.belongsTo(models.User, { foreignKey: "studentId", as: "User" });
-    Enrollment.belongsTo(models.Unit, { foreignKey: "unitCode", as: "Unit" });
+    Enrollment.belongsTo(models.Unit, { foreignKey: "unitId", as: "Unit" });
   };
 
   return Enrollment;

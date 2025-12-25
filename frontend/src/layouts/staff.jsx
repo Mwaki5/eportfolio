@@ -54,7 +54,7 @@ const admin = () => {
           <div className="rounded-full">
             <img
               className="h-10 w-10 rounded-full object-cover"
-              src={`http://localhost:3400/${profilePic}`}
+              src={`http://localhost:5000/${encodeURIComponent(profilePic)}`}
               alt="profile"
             />
           </div>
@@ -97,13 +97,6 @@ const admin = () => {
               </summary>
               <div className="ml-8 mt-2 space-y-1">
                 <Link
-                  to="/staff/student/view"
-                  className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  View Students
-                </Link>
-                <Link
                   to="/staff/student/add"
                   className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
                   onClick={() => setSidebarOpen(false)}
@@ -118,32 +111,11 @@ const admin = () => {
                   Edit Student
                 </Link>
                 <Link
-                  to="/staff/student/edit/guardian"
+                  to="/staff/student/filter/details"
                   className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
                   onClick={() => setSidebarOpen(false)}
                 >
-                  Edit Guardian
-                </Link>
-                <Link
-                  to="/staff/student/edit/residence"
-                  className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  Edit Residence
-                </Link>
-                <Link
-                  to="/staff/student/delete"
-                  className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  Delete Student
-                </Link>
-                <Link
-                  to="/staff/student/search"
-                  className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  Search Students
+                  Filter Students
                 </Link>
               </div>
             </details>
@@ -155,32 +127,26 @@ const admin = () => {
 
               <div className="ml-8 mt-2 space-y-1">
                 <Link
-                  to="/staff/unit/view"
-                  className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  View Units
-                </Link>
-                <Link
                   to="/staff/unit/add"
                   className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
                   onClick={() => setSidebarOpen(false)}
                 >
                   Add Unit
                 </Link>
+
                 <Link
                   to="/staff/unit/edit"
                   className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
                   onClick={() => setSidebarOpen(false)}
                 >
-                  Edit Unit
+                  Edit Units
                 </Link>
                 <Link
-                  to="/staff/unit/delete"
+                  to="/staff/unit/filter"
                   className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
                   onClick={() => setSidebarOpen(false)}
                 >
-                  Delete Unit
+                  Filter Units
                 </Link>
               </div>
             </details>
@@ -192,19 +158,13 @@ const admin = () => {
 
               <div className="ml-8 mt-2 space-y-1">
                 <Link
-                  to="/staff/mark/view"
-                  className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  View Marks
-                </Link>
-                <Link
                   to="/staff/mark/add"
                   className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
                   onClick={() => setSidebarOpen(false)}
                 >
                   Register Marks
                 </Link>
+
                 <Link
                   to="/staff/mark/edit"
                   className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
@@ -213,11 +173,11 @@ const admin = () => {
                   Edit Marks
                 </Link>
                 <Link
-                  to="/staff/mark/delete"
+                  to="/staff/mark/view"
                   className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
                   onClick={() => setSidebarOpen(false)}
                 >
-                  Delete Marks
+                  Filter Marks
                 </Link>
               </div>
             </details>
@@ -229,13 +189,6 @@ const admin = () => {
 
               <div className="ml-8 mt-2 space-y-1">
                 <Link
-                  to="/staff/enrollment/view"
-                  className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  View Enrollments
-                </Link>
-                <Link
                   to="/staff/enrollment/add"
                   className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
                   onClick={() => setSidebarOpen(false)}
@@ -243,61 +196,22 @@ const admin = () => {
                   Create Enrollment
                 </Link>
                 <Link
-                  to="/staff/enrollment/edit"
+                  to="/staff/enrollment/view"
                   className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
                   onClick={() => setSidebarOpen(false)}
                 >
-                  Edit Enrollment
+                  Edit Enrollments
                 </Link>
+
                 <Link
-                  to="/staff/enrollment/delete"
+                  to="/staff/enrollment/filter"
                   className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
                   onClick={() => setSidebarOpen(false)}
                 >
-                  Delete Enrollment
+                  Filter Enrollment
                 </Link>
               </div>
             </details>
-
-            <details className="group">
-              <summary className="flex items-center cursor-pointer px-2 py-2 rounded hover:bg-gray-800 transition-colors">
-                <FaArchway className="mr-3" />
-                Manage Department
-              </summary>
-              <div className="ml-8 mt-2 space-y-1">
-                <Link
-                  to="/staff/department/view"
-                  className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  View Departments
-                </Link>
-                <Link
-                  to="/staff/department/search"
-                  className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  Search Departments
-                </Link>
-              </div>
-            </details>
-
-            <Link
-              to="/lecture-halls"
-              className="flex items-center px-2 py-2 rounded hover:bg-gray-800 transition-colors"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <FaChalkboardTeacher className="mr-3" />
-              Manage Lecture Halls
-            </Link>
-            <Link
-              to="/hostels"
-              className="flex items-center px-2 py-2 rounded hover:bg-gray-800 transition-colors"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <FaBuilding className="mr-3" />
-              Manage Hostels
-            </Link>
           </nav>
 
           {/* Logout Button at Bottom */}

@@ -1,243 +1,213 @@
-import { toast } from "react-toastify";
-import Spinner from "../../components/Spinner";
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
-import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import Alert from "../../components/Alert";
-import FormTitle from "../../components/FormTitle";
-import { registerSchema } from "../../schema/RegisterSchema";
-import Label from "../../components/Label";
-import Input from "../../components/Input";
-import { useSearchParams } from "react-router-dom";
+import Spinner from "../../components/Spinner";
+import { toast } from "react-toastify";
+import { FaEdit, FaTrash, FaSearch } from "react-icons/fa";
+import UpdateStudent from "./EditStudentModal";
+import DeleteStudent from "./DeleteStudentModal";
 
-const Addstudent = () => {
+const EditStudent = () => {
   const axios = useAxiosPrivate();
+  const [students, setStudents] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [profile, setProfile] = useState(null);
-  const [params] = useSearchParams();
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const searchRef = useRef(null);
 
-  const {
-    handleSubmit,
-    register,
-    reset,
-    formState: { errors },
-  } = useForm({
-    resolver: yupResolver(registerSchema),
-    mode: "onTouched",
-  });
-
-  const onSubmit = async (data) => {
-    setError(null);
+  // Optimized Fetching
+  const fetchStudents = async (query = "") => {
     setIsLoading(true);
-
+    setError(null);
     try {
-      const formData = new FormData();
-
-      Object.keys(data).forEach((key) => {
-        if (key === "profilePic") {
-          formData.append("profilePic", data.profilePic[0]);
-        } else {
-          formData.append(key, data[key]);
-        }
-      });
-
-      const res = await axios.post("/api/auth/register", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      toast.success(res.data.message);
-      reset();
+      const endpoint = query
+        ? `/api/students/search/${encodeURIComponent(query)}`
+        : "/api/students";
+      const res = await axios.get(endpoint);
+      setStudents(res.data.data || []);
     } catch (err) {
-      if (err.response?.status === 400) {
-        setError(err.response.data.message);
-        toast.error(err.response.data.message);
-        console.log(err.response.data.message);
-      } else {
-        setError(err.response.data.message);
-        toast.error("Execution not done.");
-      }
+      setError(err.response?.data?.message || "Failed to fetch students");
+      toast.error("Failed to load records");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      //  if (!user?.userId) return;
+    fetchStudents();
+  }, [axios]);
 
-      setIsLoading(true);
-      try {
-        const res = await axios.get(
-          `/api/students/search?${params.toString()}`
-        );
-        setProfile(res.data.data);
-      } catch (error) {
-        toast.error(error.response?.data?.message || "Failed to fetch profile");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const handleSearch = () => {
+    fetchStudents(searchRef.current.value.trim());
+  };
 
-    fetchProfile();
-  }, []);
+  const handleEditClick = (student) => {
+    setSelectedStudent(student);
+    setEditModalOpen(true);
+  };
+
+  const handleDeleteClick = (student) => {
+    setSelectedStudent(student);
+    setDeleteModalOpen(true);
+  };
 
   return (
-    <form
-      className="w-full grid gap-6  p-2 shadow-sm"
-      onSubmit={handleSubmit(onSubmit)}
-      encType="multipart/form-data"
-    >
-      <FormTitle>Add New Student</FormTitle>
-
-      <div className="wrapper  grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3  gap-6  p-2">
-        {/* Admission No */}
+    <div className="w-full space-y-6">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <div>
-          <Label
-            label="Admission No"
-            error={errors.userId?.message}
-            htmlFor="userId"
-          />
-          <Input
-            type="text"
-            name="userId"
-            register={register}
-            placeholder="BS13/00/21"
-          />
+          <p className="text-xs text-gray-500 mt-1">
+            Manage and update student academic profiles.
+          </p>
         </div>
 
-        {/* Role (Hidden) */}
-        <input type="hidden" value="student" {...register("role")} />
-
-        {/* First Name */}
-        <div>
-          <Label
-            label="First name"
-            error={errors.firstname?.message}
-            htmlFor="firstname"
-          />
-          <Input
-            type="text"
-            name="firstname"
-            register={register}
-            placeholder="John"
-          />
-        </div>
-
-        {/* Last Name */}
-        <div>
-          <Label
-            label="Last name"
-            error={errors.lastname?.message}
-            htmlFor="lastname"
-          />
-          <Input
-            type="text"
-            name="lastname"
-            register={register}
-            placeholder="Masika"
-          />
-        </div>
-
-        {/* Email */}
-        <div>
-          <Label label="Email" error={errors.email?.message} htmlFor="email" />
-          <Input
-            type="email"
-            name="email"
-            register={register}
-            placeholder="student@gmail.com"
-          />
-        </div>
-
-        {/* Level */}
-        <div>
-          <Label label="Level" error={errors.level?.message} htmlFor="level" />
-          <select
-            className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5
-            dark:bg-gray-700 dark:border-gray-600 dark:text-white
-            dark:focus:ring-blue-500 dark:focus:border-blue-500"
-            {...register("level")}
-          >
-            <option value=""></option>
-            <option value="Level 3">Level 3</option>
-            <option value="Level 4">Level 4</option>
-            <option value="Level 5">Level 5</option>
-          </select>
-        </div>
-
-        {/* Department */}
-        <div>
-          <Label
-            label="Department"
-            error={errors.department?.message}
-            htmlFor="department"
-          />
-          <select
-            className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5
-            dark:bg-gray-700 dark:border-gray-600 dark:text-white
-            dark:focus:ring-blue-500 dark:focus:border-blue-500"
-            {...register("department")}
-          >
-            <option value=""></option>
-            <option value="ICT">ICT</option>
-            <option value="Food and Beverage">Food and Beverage</option>
-          </select>
-        </div>
-
-        {/* Gender */}
-        <div>
-          <Label
-            label="Gender"
-            error={errors.gender?.message}
-            htmlFor="gender"
-          />
-          <select
-            className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5
-            dark:bg-gray-700 dark:border-gray-600 dark:text-white
-            dark:focus:ring-blue-500 dark:focus:border-blue-500"
-            {...register("gender")}
-          >
-            <option value=""></option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-          </select>
-        </div>
-
-        {/* Profile Pic */}
-        <div>
-          <Label
-            label="Profile picture"
-            error={errors.profilePic?.message}
-            htmlFor="profilePic"
-          />
+        <div className="relative group min-w-[320px]">
           <input
-            type="file"
-            className="bg-gray-50 border border-gray-300 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full
-            dark:bg-gray-700 dark:border-gray-600 dark:text-white
-            dark:focus:ring-blue-500 dark:focus:border-blue-500"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            {...register("profilePic")}
+            ref={searchRef}
+            type="text"
+            placeholder="Search by Adm no or email..."
+            className="w-full pl-10 pr-20 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#00966d] focus:bg-white outline-none transition-all"
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           />
+          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#00966d]" />
+          <button
+            onClick={handleSearch}
+            className="absolute right-1.5 top-1.5 bottom-1.5 px-4 bg-[#00966d] text-white text-xs font-semibold rounded-md hover:bg-[#007a58] transition-colors"
+          >
+            Search
+          </button>
         </div>
       </div>
 
-      <Alert error={error} setError={setError} />
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-sm text-sm">
+          {error}
+        </div>
+      )}
 
-      <div className="logo flex justify-center mt-5">
-        <button
-          type="submit"
-          className="block text-white bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300
-          font-medium rounded-lg text-sm w-full sm:w-auto px-4 py-2 text-center
-          dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800"
-          disabled={isLoading}
-        >
-          {isLoading ? <Spinner /> : "Submit"}
-        </button>
-      </div>
-    </form>
+      {/* Main Content Area */}
+      {isLoading && students.length === 0 ? (
+        <div className="flex flex-col justify-center items-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <Spinner />
+          <p className="mt-4 text-gray-500 text-sm animate-pulse">
+            Loading records...
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+                <tr>
+                  <th className="px-6 py-4">Identification</th>
+                  <th className="px-6 py-4">Full Name</th>
+                  <th className="px-6 py-4">Academic Info</th>
+                  <th className="px-6 py-4">Gender</th>
+                  <th className="px-6 py-4 text-center">Manage</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {students.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan="5"
+                      className="px-6 py-4 text-center text-gray-500"
+                    >
+                      No students found matching the criteria.
+                    </td>
+                  </tr>
+                )}
+                {students.map((student) => (
+                  <tr
+                    key={student.userId}
+                    className="hover:bg-green-50/30 transition-colors group"
+                  >
+                    <td className="px-6 py-4">
+                      <span className="font-mono text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                        {student.userId}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-green-100 text-[#00966d] flex items-center justify-center font-bold text-xs">
+                          {student.firstname[0]}
+                          {student.lastname[0]}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-gray-800">
+                            {student.firstname} {student.lastname}
+                          </span>
+                          <span className="text-[11px] text-gray-400">
+                            {student.email}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-medium text-gray-700">
+                          {student.department}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          Level: {student.level || "N/A"}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 w-fit font-bold uppercase">
+                          {student.gender}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-center items-center gap-3">
+                        <button
+                          onClick={() => handleEditClick(student)}
+                          className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors tooltip"
+                          title="Edit Details"
+                        >
+                          <FaEdit size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(student)}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete Record"
+                        >
+                          <FaTrash size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
+      <UpdateStudent
+        isLoading={isLoading}
+        setStudents={setStudents}
+        students={students}
+        selectedStudent={selectedStudent}
+        setEditModalOpen={setEditModalOpen}
+        editModalOpen={editModalOpen}
+        setIsLoading={setIsLoading}
+      />
+      <DeleteStudent
+        setStudents={setStudents}
+        students={students}
+        isLoading={isLoading}
+        selectedStudent={selectedStudent}
+        setDeleteModalOpen={setDeleteModalOpen}
+        deleteModalOpen={deleteModalOpen}
+        setIsLoading={setIsLoading}
+      />
+    </div>
   );
 };
 
-export default Addstudent;
+export default EditStudent;

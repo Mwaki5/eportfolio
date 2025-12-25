@@ -5,11 +5,11 @@ const Label = ({ htmlFor = "", label = "", error = "" }) => {
     <React.Fragment>
       <label
         htmlFor={htmlFor}
-        className="block mb-2 text-sm font-medium dark:text-white"
+        className=" mb-2 text-sm font-medium dark:text-white "
       >
-        {label}
+        <p>{label}</p>
       </label>
-      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {error && <p className="text-red-500 text-sm inline-block">{error}</p>}
     </React.Fragment>
   );
 };

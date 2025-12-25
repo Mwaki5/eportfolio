@@ -27,9 +27,13 @@ const StudentDashboard = () => {
 
       try {
         const [enrollments, evidence, marks] = await Promise.all([
-          axios.get(`/api/enrollments/student/${user.userId}`),
-          axios.get(`/api/evidence/student/${user.userId}`),
-          axios.get(`/api/marks/student/${user.userId}`),
+          axios.get(
+            `/api/enrollments/search/${encodeURIComponent(user.userId)}`
+          ),
+          axios.get(
+            `/api/evidences/student/${encodeURIComponent(user.userId)}`
+          ),
+          axios.get(`/api/marks/${encodeURIComponent(user.userId)}`),
         ]);
 
         const enrollmentsData = enrollments.data.data || [];

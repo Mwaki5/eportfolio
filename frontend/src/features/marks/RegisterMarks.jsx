@@ -3,58 +3,67 @@ import { useForm } from "react-hook-form";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { toast } from "react-toastify";
+import { FaCheckCircle, FaTrashAlt } from "react-icons/fa";
+
 import FormTitle from "../../components/FormTitle";
 import Label from "../../components/Label";
 import Input from "../../components/Input";
-import useAxiosPrivate from "../../hooks/useAxiosPrivate";
+import Alert from "../../components/Alert";
 import Spinner from "../../components/Spinner";
+import DataList from "../../components/DataList";
+import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 
 const validationSchema = yup.object().shape({
   studentId: yup.string().required("Student ID is required"),
-  unitCode: yup.string().required("Unit code is required"),
-  assessmentType: yup.string().required("Assessment type is required"),
-  assessmentNumber: yup.string().required("Assessment number is required"),
+  unitCode: yup.string().required("Please select a unit"),
+  assessmentType: yup.string().required("Select assessment type"),
+  assessmentNumber: yup.string().required("Select assessment number"),
   marks: yup
     .number()
-    .min(0, "Marks cannot be negative")
-    .max(100, "Marks cannot exceed 100")
-    .required("Marks is required"),
+    .typeError("Must be a number")
+    .min(0, "Minimum is 0")
+    .max(100, "Maximum is 100")
+    .required("Marks are required"),
 });
 
 const RegisterMarks = () => {
   const axios = useAxiosPrivate();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [units, setUnits] = useState([]);
 
   const {
     handleSubmit,
     register,
     reset,
-    formState: { errors },
     watch,
+    formState: { errors },
   } = useForm({
     resolver: yupResolver(validationSchema),
+    mode: "onTouched",
   });
 
-  const assessmentType = watch("assessmentType");
-  const assessmentNumber = watch("assessmentNumber");
+  const watchType = watch("assessmentType");
+  const watchNum = watch("assessmentNumber");
+  const watchUnit = watch("unitCode");
 
   useEffect(() => {
     const fetchUnits = async () => {
       try {
         const res = await axios.get("/api/units");
         setUnits(res.data.data || []);
-      } catch (error) {
-        console.error("Failed to fetch units:", error);
+      } catch {
+        toast.error("Failed to load units");
       }
     };
     fetchUnits();
   }, [axios]);
 
   const onSubmit = async (data) => {
+    setError(null);
     setIsLoading(true);
+
     try {
-      // Map assessment type and number to the correct field
       const markField =
         data.assessmentType === "theory"
           ? `theory${data.assessmentNumber}`
@@ -63,91 +72,74 @@ const RegisterMarks = () => {
       const payload = {
         studentId: data.studentId,
         unitCode: data.unitCode,
-        [markField]: parseFloat(data.marks),
+        [markField]: Number(data.marks),
       };
 
-      const res = await axios.post("/api/marks", payload);
-      toast.success(
-        res.data.message ||
-          `${data.assessmentType === "theory" ? "Theory" : "Practical"} ${data.assessmentNumber} marks registered successfully`
-      );
+      await axios.post("/api/marks", payload);
+
+      toast.success(`Registered ${data.marks}% for ${data.studentId}`);
+
       reset({
         studentId: data.studentId,
         unitCode: data.unitCode,
-        assessmentType: "",
+        assessmentType: data.assessmentType,
         assessmentNumber: "",
         marks: "",
       });
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message || "Failed to register marks"
-      );
+    } catch (err) {
+      const errMsg = err.response?.data?.message || "Failed to register marks";
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const selectStyle = (err) => `
+    bg-gray-50 border ${err ? "border-red-500" : "border-gray-300"}
+    text-sm rounded-lg focus:ring-green-500 focus:border-green-500
+    block w-full p-2.5 outline-none transition-all
+  `;
+
   return (
-    <div className="w-full">
-      <form
-        className="w-full grid gap-6 p-2 shadow-sm"
-        onSubmit={handleSubmit(onSubmit)}
-      >
-        <FormTitle>Register Individual Marks</FormTitle>
+    <div className="max-w-4xl mx-auto bg-white p-6 rounded-2xl shadow-md border border-gray-100">
+      <FormTitle>Register Student Marks</FormTitle>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-          <p className="text-sm text-blue-800">
-            <strong>Note:</strong> You can register marks individually. If marks
-            already exist for this student and unit, they will be updated.
-          </p>
-        </div>
-
-        <div className="wrapper grid sm:grid-cols-1 md:grid-cols-2 gap-6 p-2">
+      <form onSubmit={handleSubmit(onSubmit)} className="pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
           {/* Student ID */}
-          <div>
-            <Label
-              label="Student ID"
-              error={errors.studentId?.message}
-              htmlFor="studentId"
-            />
+          <div className="space-y-1">
+            <Label label="Student ID" error={errors.studentId?.message} />
             <Input
-              type="text"
               name="studentId"
               register={register}
-              placeholder="Enter student ID"
+              error={errors.studentId}
+              placeholder="BS13/00/21"
             />
           </div>
 
-          {/* Unit Code */}
-          <div>
-            <Label
-              label="Unit Code"
-              error={errors.unitCode?.message}
-              htmlFor="unitCode"
+          {/* Unit */}
+          <div className="space-y-1">
+            <Label label="Unit" error={errors.unitCode?.message} />
+            <DataList
+              name="unitCode"
+              register={register}
+              error={errors.unitCode}
+              placeholder="Type to search unit..."
+              options={units.map((u) => u.unitCode)}
+              required
             />
-            <select
-              className="bg-white border-1 border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-all duration-200 p-3 w-full"
-              {...register("unitCode")}
-            >
-              <option value="">Select Unit</option>
-              {units.map((unit) => (
-                <option key={unit.unitCode} value={unit.unitCode}>
-                  {unit.unitCode} - {unit.unitName}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* Assessment Type */}
-          <div>
+          <div className="space-y-1">
             <Label
               label="Assessment Type"
               error={errors.assessmentType?.message}
-              htmlFor="assessmentType"
             />
             <select
-              className="bg-white border-1 border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-all duration-200 p-3 w-full"
               {...register("assessmentType")}
+              className={selectStyle(errors.assessmentType)}
             >
               <option value="">Select Type</option>
               <option value="theory">Theory</option>
@@ -156,82 +148,69 @@ const RegisterMarks = () => {
           </div>
 
           {/* Assessment Number */}
-          <div>
+          <div className="space-y-1">
             <Label
-              label="Assessment Number"
+              label="Assessment No"
               error={errors.assessmentNumber?.message}
-              htmlFor="assessmentNumber"
             />
             <select
-              className="bg-white border-1 border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-1 focus:ring-green-500 focus:border-green-500 transition-all duration-200 p-3 w-full"
               {...register("assessmentNumber")}
-              disabled={!assessmentType}
+              className={selectStyle(errors.assessmentNumber)}
             >
-              <option value="">Select Number</option>
-              {assessmentType && (
-                <>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                </>
-              )}
+              <option value="">Select</option>
+              {[1, 2, 3, 4].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
             </select>
           </div>
 
           {/* Marks */}
-          <div>
-            <Label
-              label="Marks (0-100)"
-              error={errors.marks?.message}
-              htmlFor="marks"
-            />
+          <div className="space-y-1 md:col-span-1">
+            <Label label="Marks (0–100)" error={errors.marks?.message} />
             <Input
               type="number"
               name="marks"
               register={register}
-              placeholder="Enter marks (0-100)"
-              min="0"
-              max="100"
+              error={errors.marks}
+              placeholder="Enter marks"
             />
           </div>
         </div>
 
-        {/* Preview */}
-        {assessmentType && assessmentNumber && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <p className="text-sm text-gray-700">
-              <strong>Preview:</strong> Registering{" "}
-              <span className="font-semibold text-green-600">
-                {assessmentType === "theory" ? "Theory" : "Practical"}{" "}
-                {assessmentNumber}
-              </span>{" "}
-              marks for the selected student and unit.
-            </p>
+        {/* Dynamic Target Badge */}
+        {watchType && watchNum && watchUnit && (
+          <div className="mt-6 flex justify-center">
+            <div className="px-4 py-2 bg-green-50 border border-green-200 text-green-700 text-xs font-bold rounded-full flex items-center gap-2">
+              <FaCheckCircle />
+              {watchUnit.toUpperCase()} • {watchType.toUpperCase()} {watchNum}
+            </div>
           </div>
         )}
 
-        <div className="logo flex justify-center mt-5">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={`flex items-center justify-center gap-2 text-white ${
-              isLoading
-                ? "bg-green-500 cursor-not-allowed"
-                : "bg-green-700 hover:bg-green-800"
-            } focus:ring-4 focus:outline-none focus:ring-green-300
-              font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5
-              text-center dark:bg-green-600 dark:hover:bg-green-700
-              dark:focus:ring-green-800`}
-          >
-            {isLoading ? (
-              <>
-                <Spinner size="small" color="white" />
-                <span>Registering...</span>
-              </>
-            ) : (
-              "Register Marks"
-            )}
-          </button>
+        {/* Footer */}
+        <div className="mt-8 pt-6 border-t border-gray-100">
+          <Alert error={error} setError={setError} />
+
+          <div className="flex flex-col sm:flex-row justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => reset()}
+              className="flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              <FaTrashAlt size={14} />
+              Clear
+            </button>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="flex items-center justify-center gap-2 px-10 py-2.5 text-sm font-medium text-white bg-[#00966d] hover:bg-[#007a58] rounded-lg shadow-sm disabled:opacity-70 transition-all"
+            >
+              {isLoading ? <Spinner /> : "Register Marks"}
+            </button>
+          </div>
         </div>
       </form>
     </div>

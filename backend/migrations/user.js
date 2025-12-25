@@ -53,7 +53,7 @@ module.exports = {
       },
       refreshToken: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
       },
       createdAt: {
         allowNull: false,

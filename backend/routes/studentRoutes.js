@@ -6,12 +6,12 @@ const upload = require("../middlewares/multer");
 
 // All routes require authentication
 router.get("/", studentController.getAllStudents);
-router.get("/search", studentController.searchStudents);
-//router.get("/:studentId", studentController.getStudentById);
+router.get("/filter", studentController.filterStudents);
+router.get("/search/:identifier", studentController.searchStudents);
+router.get("/:studentId", studentController.getStudentById);
 router.put(
-  "/:studentId",
+  "/edit/:studentId",
   verifyRoles("staff"),
-  upload.single("profilePic"),
   studentController.updateStudent
 );
 router.delete(

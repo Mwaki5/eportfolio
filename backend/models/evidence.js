@@ -4,28 +4,28 @@ module.exports = (sequelize, DataTypes) => {
   const Evidence = sequelize.define(
     "Evidence",
     {
-      id: {
+      evidenceId: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: DataTypes.INTEGER,
       },
       studentId: {
-        type: DataTypes.STRING,
+        type: DataTypes.INTEGER,
         allowNull: false,
         references: {
           model: "Users",
-          key: "userId",
+          key: "id",
         },
         onDelete: "CASCADE",
         onUpdate: "CASCADE",
       },
-      unitCode: {
-        type: DataTypes.STRING,
+      unitId: {
+        type: DataTypes.INTEGER,
         allowNull: false,
         references: {
           model: "Units",
-          key: "unitCode",
+          key: "unitId",
         },
         onDelete: "CASCADE",
         onUpdate: "CASCADE",
@@ -38,14 +38,13 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
+      evidenceType: {
+        type: DataTypes.STRING,
+        //field: 'evidence_type', // <--- Add this if your DB uses snake_case
+      },
       description: {
         type: DataTypes.TEXT,
         allowNull: true,
-      },
-      evidenceType: {
-        type: DataTypes.ENUM("image", "video"),
-        allowNull: false,
-        defaultValue: "image",
       },
       uploadedAt: {
         type: DataTypes.DATE,
@@ -60,7 +59,7 @@ module.exports = (sequelize, DataTypes) => {
 
   Evidence.associate = (models) => {
     Evidence.belongsTo(models.User, { foreignKey: "studentId", as: "User" });
-    Evidence.belongsTo(models.Unit, { foreignKey: "unitCode", as: "Unit" });
+    Evidence.belongsTo(models.Unit, { foreignKey: "unitId", as: "Unit" });
   };
 
   return Evidence;

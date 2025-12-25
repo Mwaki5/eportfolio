@@ -1,4 +1,4 @@
-const { Marks, Unit, User } = require("../models");
+const { Marks, Unit, User, Enrollment } = require("../models");
 const { Op } = require("sequelize");
 const AppError = require("../utils/AppError");
 
@@ -15,6 +15,8 @@ const createMarks = async (req, res, next) => {
       prac2,
       prac3,
     } = req.body;
+
+    // Verify enrollment
 
     // Verify student exists
     const student = await User.findOne({
@@ -36,9 +38,19 @@ const createMarks = async (req, res, next) => {
       });
     }
 
+    const enrollment = await Enrollment.findOne({
+      where: { unitId: unit.unitId, studentId: student.id },
+    });
+    if (!enrollment) {
+      return res.status(404).json({
+        success: false,
+        message: "Student must enroll for the unit first",
+      });
+    }
+
     // Check if marks already exist for this student and unit
     const existingMarks = await Marks.findOne({
-      where: { studentId, unitCode },
+      where: { studentId: student.id, unitId: unit.unitId },
     });
 
     let marks;
@@ -67,8 +79,8 @@ const createMarks = async (req, res, next) => {
     } else {
       // Create new marks record
       marks = await Marks.create({
-        studentId,
-        unitCode,
+        studentId: student.id,
+        unitId: unit.unitId,
         theory1: theory1 || null,
         theory2: theory2 || null,
         theory3: theory3 || null,
@@ -118,27 +130,35 @@ const getAllMarks = async (req, res, next) => {
 };
 
 // Get marks by student
-const getMarksByStudent = async (req, res, next) => {
+const getMarksByStudentId = async (req, res, next) => {
   try {
-    const { studentId } = req.params;
+    const { userId } = req.params;
+
+    const student = await User.findOne({
+      where: { userId, role: "student" },
+    });
+
+    if (!student) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Student not found" });
+    }
 
     const marks = await Marks.findAll({
-      where: { studentId },
+      where: { studentId: student.id },
       include: [
         {
           model: Unit,
           as: "Unit",
-          attributes: ["unitCode", "staffId"],
+          attributes: ["unitCode", "unitName"],
         },
       ],
     });
 
-    res.status(200).json({
-      success: true,
-      data: marks,
-    });
-  } catch (error) {
-    next(error);
+    res.json({ success: true, data: marks });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -147,13 +167,27 @@ const getMarksByUnit = async (req, res, next) => {
   try {
     const { unitCode } = req.params;
 
+    // First find the unit by unitCode
+    const unit = await Unit.findOne({ where: { unitCode } });
+    if (!unit) {
+      return res.status(404).json({
+        success: false,
+        message: "Unit not found",
+      });
+    }
+
     const marks = await Marks.findAll({
-      where: { unitCode },
+      where: { unitId: unit.unitId },
       include: [
         {
           model: User,
           as: "User",
           attributes: ["userId", "firstname", "lastname", "email"],
+        },
+        {
+          model: Unit,
+          as: "Unit",
+          attributes: ["unitCode", "unitName", "staffId"],
         },
       ],
     });
@@ -225,12 +259,76 @@ const deleteMarks = async (req, res, next) => {
   }
 };
 
+const getMarksBySession = async (req, res) => {
+  try {
+    const { userId, session } = req.params;
+
+    /* 1️⃣ Resolve student primary key */
+    const student = await User.findOne({
+      where: { userId, role: "student" },
+      attributes: ["id"],
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    /* 2️⃣ Get unitIds enrolled in this session */
+    const unitRows = await Enrollment.findAll({
+      where: {
+        studentId: student.id,
+        session,
+      },
+      attributes: ["unitId"],
+      raw: true,
+    });
+
+    const unitIds = unitRows.map((u) => u.unitId);
+
+    if (!unitIds.length) {
+      return res.json({ success: true, data: [] });
+    }
+
+    /* 3️⃣ Fetch marks using studentId + unitId */
+    const marks = await Marks.findAll({
+      where: {
+        studentId: student.id,
+        unitId: {
+          [Op.in]: unitIds,
+        },
+      },
+      include: [
+        {
+          model: Unit,
+          as: "Unit",
+          attributes: ["unitCode", "unitName"],
+        },
+      ],
+      order: [["unitId", "ASC"]],
+    });
+
+    return res.json({
+      success: true,
+      data: marks,
+    });
+  } catch (error) {
+    console.error("Get Marks By Session Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
 module.exports = {
   createMarks,
   getAllMarks,
-  getMarksByStudent,
+  getMarksByStudentId,
   getMarksByUnit,
+  getMarksBySession,
   updateMarks,
   deleteMarks,
 };
-

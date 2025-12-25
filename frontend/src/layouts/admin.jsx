@@ -56,7 +56,7 @@ const Admin = () => {
           <div className="rounded-full">
             <img
               className="h-10 w-10 rounded-full object-cover"
-              src={`http://localhost:3400/${profilePic}`}
+              src={`http://localhost:5000/${encodeURIComponent(profilePic)}`}
               alt="profile"
             />
           </div>
@@ -328,4 +328,3 @@ const Admin = () => {
 };
 
 export default Admin;
-

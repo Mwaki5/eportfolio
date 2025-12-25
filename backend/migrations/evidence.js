@@ -5,28 +5,28 @@ const unit = require("./unit");
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable("Evidence", {
-      id: {
+      evidenceId: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER,
       },
       studentId: {
-        type: Sequelize.STRING,
+        type: Sequelize.INTEGER,
         allowNull: false,
         references: {
           model: "Users",
-          key: "userId",
+          key: "id",
         },
         onDelete: "CASCADE",
         onUpdate: "CASCADE",
       },
-      unitCode: {
-        type: Sequelize.STRING,
+      unitId: {
+        type: Sequelize.INTEGER,
         allowNull: false,
         references: {
           model: "Units",
-          key: "unitCode",
+          key: "unitId",
         },
         onDelete: "CASCADE",
         onUpdate: "CASCADE",
@@ -39,6 +39,10 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
+      evidenceType: {
+        type: Sequelize.STRING,
+        //field: 'evidence_type', // <--- Add this if your DB uses snake_case
+      },
       description: {
         type: Sequelize.TEXT,
         allowNull: true,
@@ -46,7 +50,6 @@ module.exports = {
       uploadedAt: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal("NOW()"),
       },
     });
   },

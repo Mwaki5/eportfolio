@@ -24,6 +24,44 @@ const getAllStudents = async (req, res, next) => {
   }
 };
 
+const filterStudents = async (req, res, next) => {
+  try {
+    const { firstname, lastname, email, department, level, gender } = req.query;
+    let whereClause = { role: "student" };
+    const isValid = (val) => val && val !== "undefined" && val.trim() !== "";
+    if (isValid(firstname))
+      whereClause.firstname = { [Op.like]: `%${firstname}%` };
+    if (isValid(lastname))
+      whereClause.lastname = { [Op.like]: `%${lastname}%` };
+    if (isValid(email)) whereClause.email = { [Op.like]: `%${email}%` };
+    if (isValid(department))
+      whereClause.department = { [Op.like]: `%${department}%` };
+    if (isValid(level)) whereClause.level = level; // Levels are usually exact matches
+    if (isValid(gender)) whereClause.gender = gender;
+    const students = await User.findAll({
+      where: whereClause,
+      attributes: { exclude: ["password", "refreshToken"] }, // Safety first
+      order: [["createdAt", "DESC"]],
+      limit: 100,
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: students.length,
+      data: students,
+    });
+  } catch (error) {
+    console.error("Search Error:", error);
+
+    if (res.headersSent) {
+      return next(error);
+    }
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error during search",
+    });
+  }
+};
 // Get student by ID
 const getStudentById = async (req, res, next) => {
   try {
@@ -55,23 +93,19 @@ const getStudentById = async (req, res, next) => {
 // Search students
 const searchStudents = async (req, res, next) => {
   try {
-    const { query } = req.query;
-    console.log(query);
-    if (!query) {
+    const { identifier } = req.params;
+    if (!identifier) {
       return res.status(400).json({
         success: false,
-        message: "Search query is required",
+        message: "Search identifier is required",
       });
     }
-
     const students = await User.findAll({
       where: {
         role: "student",
         [Op.or]: [
-          { userId: { [Op.like]: `%${query}%` } },
-          { firstname: { [Op.like]: `%${query}%` } },
-          { lastname: { [Op.like]: `%${query}%` } },
-          { email: { [Op.like]: `%${query}%` } },
+          { userId: { [Op.like]: identifier } },
+          { email: { [Op.like]: identifier } },
         ],
       },
       attributes: {
@@ -92,8 +126,10 @@ const searchStudents = async (req, res, next) => {
 // Update student
 const updateStudent = async (req, res, next) => {
   try {
+    console.log("Update Student Req Body:", req.body);
     const { studentId } = req.params;
-    const { email, firstname, lastname, gender, department, level } = req.body;
+    const { userId, email, firstname, lastname, gender, department, level } =
+      req.body;
 
     const student = await User.findOne({
       where: { userId: studentId, role: "student" },
@@ -119,6 +155,7 @@ const updateStudent = async (req, res, next) => {
     }
 
     // Update fields
+    if (userId) student.userId = userId;
     if (email) student.email = email;
     if (firstname) student.firstname = firstname;
     if (lastname) student.lastname = lastname;
@@ -173,6 +210,7 @@ const deleteStudent = async (req, res, next) => {
 module.exports = {
   getAllStudents,
   getStudentById,
+  filterStudents,
   searchStudents,
   updateStudent,
   deleteStudent,

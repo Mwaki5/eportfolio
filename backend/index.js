@@ -28,13 +28,11 @@ app.use(cors(corsOption));
 app.use(cookieParser());
 
 app.use("/api/auth/", require("./routes/authRoutes"));
-
 app.use(verifyJwt);
-
 // Protected routes
 app.use("/api/units", require("./routes/unitRoutes"));
 app.use("/api/enrollments", require("./routes/enrollmentRoutes"));
-app.use("/api/evidence", require("./routes/evidenceRoutes"));
+app.use("/api/evidences", require("./routes/evidenceRoutes"));
 app.use("/api/marks", require("./routes/markRoutes"));
 app.use("/api/students", require("./routes/studentRoutes"));
 
@@ -49,7 +47,7 @@ app.use(errorHandler);
   try {
     await sequelize.authenticate();
     //await sequelize.sync({ alter: true });
-    // await sequelize.sync({ force: true });
+    //await sequelize.sync({ force: true });
 
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {

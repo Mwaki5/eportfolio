@@ -1,215 +1,219 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import Spinner from "../../components/Spinner";
 import { toast } from "react-toastify";
-import { FaBook, FaUser, FaEdit, FaTrash, FaCalendarAlt } from "react-icons/fa";
+import { FaEdit, FaTrash, FaSearch, FaBook } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import Modal from "../../components/Modal";
+import UpdateEnrollment from "./UpdateEnrollmentModal";
+import DeleteEnrollment from "./DeleteEnrollmentModal";
 
-const ViewAllEnrollments = () => {
+const EditEnrollment = () => {
   const axios = useAxiosPrivate();
+  const searchRef = useRef();
+
   const [enrollments, setEnrollments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedEnrollment, setSelectedEnrollment] = useState(null);
+  const [enrollmentToDelete, setEnrollmentToDelete] = useState(null);
+
+  const fetchEnrollments = async (query = "") => {
+    setIsLoading(true);
+
+    setError(null);
+    try {
+      const url = query
+        ? `/api/enrollments/search/${encodeURIComponent(query)}`
+        : "/api/enrollments";
+      const res = await axios.get(url);
+      setEnrollments(res.data.data || []);
+    } catch (err) {
+      console.error("Error fetching enrollments:", err);
+      setError(err.response?.data?.message || "Failed to fetch enrollments");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchEnrollments = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const res = await axios.get("/api/enrollments");
-        setEnrollments(res.data.data || []);
-      } catch (error) {
-        setError(error.response?.data?.message || "Failed to fetch enrollments");
-        toast.error("Failed to load enrollments");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchEnrollments();
-  }, [axios]);
+    console.log(enrollments);
+  }, []);
+
+  const handleSearch = () => {
+    const query = searchRef.current?.value?.trim() || "";
+    fetchEnrollments(query);
+  };
+
+  const handleUpdateClick = (enrollment) => {
+    setSelectedEnrollment(enrollment);
+    setUpdateModalOpen(true);
+  };
 
   const handleDeleteClick = (enrollment) => {
-    setSelectedEnrollment(enrollment);
+    setEnrollmentToDelete(enrollment);
     setDeleteModalOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!selectedEnrollment) return;
-
+    if (!enrollmentToDelete) return;
     try {
-      await axios.delete(`/api/enrollments/${selectedEnrollment.id}`);
+      await axios.delete(`/api/enrollments/${enrollmentToDelete.enrollmentId}`);
       toast.success("Enrollment deleted successfully");
-      setEnrollments(
-        enrollments.filter((e) => e.id !== selectedEnrollment.id)
+      setEnrollments((prev) =>
+        prev.filter((e) => e.enrollmentId !== enrollmentToDelete.enrollmentId)
       );
+    } catch (err) {
+      toast.error("Failed to delete enrollment");
+    } finally {
+      setEnrollmentToDelete(null);
       setDeleteModalOpen(false);
-      setSelectedEnrollment(null);
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to delete enrollment");
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="w-full flex justify-center items-center py-12">
-        <Spinner size="large" />
-      </div>
-    );
-  }
-
   return (
-    <div className="w-full">
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-            All Enrollments
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            View and manage all student enrollments
-          </p>
+    <div className="w-full space-y-6">
+      {/* Search Header - Matched to EditStudent/Image */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <p className="text-sm text-gray-500 font-medium">
+          Manage and update unit enrollment.
+        </p>
+
+        <div className="relative group min-w-[350px]">
+          <input
+            ref={searchRef}
+            type="text"
+            placeholder="Search unit code or admission no..."
+            className="w-full pl-10 pr-24 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#00966d] focus:bg-white outline-none transition-all"
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          />
+          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#00966d]" />
+          <button
+            onClick={handleSearch}
+            className="absolute right-1.5 top-1.5 bottom-1.5 px-5 bg-[#00966d] text-white text-xs font-bold rounded-lg hover:bg-[#007a58] transition-colors"
+          >
+            Search
+          </button>
         </div>
-        <Link
-          to="/staff/enroll-new"
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-        >
-          <FaBook /> New Enrollment
-        </Link>
       </div>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-xl text-sm">
           {error}
         </div>
       )}
 
-      {enrollments.length === 0 && !isLoading ? (
-        <div className="bg-white border-2 border-dashed border-gray-200 rounded-2xl p-12 text-center">
-          <FaBook className="text-5xl text-gray-400 mx-auto mb-4" />
-          <h3 className="text-2xl font-bold text-gray-800 mb-2">
-            No Enrollments Found
-          </h3>
-          <p className="text-gray-600 mb-6">
-            Get started by creating your first enrollment.
+      {/* Main Table Content */}
+      {isLoading && enrollments.length === 0 ? (
+        <div className="flex flex-col justify-center items-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
+          <Spinner />
+          <p className="mt-4 text-gray-500 text-sm animate-pulse">
+            Loading assignments...
           </p>
-          <Link
-            to="/staff/enroll-new"
-            className="inline-block bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg"
-          >
-            Create Enrollment
-          </Link>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-              <tr>
-                <th scope="col" className="px-6 py-3">Student ID</th>
-                <th scope="col" className="px-6 py-3">Student Name</th>
-                <th scope="col" className="px-6 py-3">Unit Code</th>
-                <th scope="col" className="px-6 py-3">Session</th>
-                <th scope="col" className="px-6 py-3">Enrolled Date</th>
-                <th scope="col" className="px-6 py-3 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {enrollments.map((enrollment) => (
-                <tr
-                  key={enrollment.id}
-                  className="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-                >
-                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                    {enrollment.studentId}
-                  </td>
-                  <td className="px-6 py-4">
-                    {enrollment.User
-                      ? `${enrollment.User.firstname} ${enrollment.User.lastname}`
-                      : "N/A"}
-                  </td>
-                  <td className="px-6 py-4">{enrollment.unitCode}</td>
-                  <td className="px-6 py-4">{enrollment.session}</td>
-                  <td className="px-6 py-4">
-                    {formatDate(enrollment.createdAt)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex justify-center gap-2">
-                      <Link
-                        to={`/staff/enrollment/edit?id=${enrollment.id}`}
-                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                      >
-                        <FaEdit /> Edit
-                      </Link>
-                      <button
-                        onClick={() => handleDeleteClick(enrollment)}
-                        className="text-red-600 hover:text-red-800 flex items-center gap-1"
-                      >
-                        <FaTrash /> Delete
-                      </button>
-                    </div>
-                  </td>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-white border-b border-gray-50 text-[10px] uppercase font-bold text-gray-400 tracking-[0.15em]">
+                <tr>
+                  <th className="px-8 py-5">Unit Code</th>
+                  <th className="px-8 py-5"> Name</th>
+                  <th className="px-8 py-5">Unit Name</th>
+                  <th className="px-8 py-5">Session</th>
+                  <th className="px-8 py-5 text-right">Manage</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {enrollments.length > 0 ? (
+                  enrollments.map((e) => (
+                    <tr
+                      key={e.enrollmentId}
+                      className="hover:bg-green-50/20 transition-colors group"
+                    >
+                      <td className="px-8 py-6">
+                        <span className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-md font-mono text-xs font-bold uppercase tracking-wider">
+                          {e.Unit?.unitCode || "CODE 2"}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-green-100 text-[#00966d] flex items-center justify-center font-bold text-xs uppercase">
+                            {e.Staff?.firstname?.[0] || "A"}
+                            {e.Staff?.lastname?.[0] || "M"}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-gray-800">
+                              {e.Staff
+                                ? `${e.Staff.firstname} ${e.Staff.lastname}`
+                                : "Ainea Mwaki"}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className="text-sm font-semibold text-gray-700">
+                          {e.Unit?.unitName || "Computer Hardwares"}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className="text-sm font-semibold text-gray-700">
+                          {e.session || "N/A"}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex justify-end items-center gap-4">
+                          <button
+                            onClick={() => handleUpdateClick(e)}
+                            className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-all"
+                          >
+                            <FaEdit size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(e)}
+                            className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all"
+                          >
+                            <FaTrash size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="5"
+                      className="px-8 py-6 text-center text-gray-500"
+                    >
+                      No enrollment found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      <Modal isOpen={deleteModalOpen} setIsOpen={setDeleteModalOpen}>
-        <div className="p-4">
-          <h3 className="text-lg font-bold mb-4">Confirm Delete</h3>
-          <p className="mb-4">
-            Are you sure you want to delete this enrollment? This action cannot
-            be undone.
-          </p>
-          {selectedEnrollment && (
-            <div className="mb-4 p-2 bg-gray-100 rounded">
-              <p>
-                <strong>Student:</strong> {selectedEnrollment.studentId}
-              </p>
-              <p>
-                <strong>Unit:</strong> {selectedEnrollment.unitCode}
-              </p>
-              <p>
-                <strong>Session:</strong> {selectedEnrollment.session}
-              </p>
-            </div>
-          )}
-          <div className="flex gap-2 justify-end">
-            <button
-              onClick={() => {
-                setDeleteModalOpen(false);
-                setSelectedEnrollment(null);
-              }}
-              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleDeleteConfirm}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </Modal>
+      {/* Modals */}
+      <UpdateEnrollment
+        updateModalOpen={updateModalOpen}
+        setIsLoading={setIsLoading}
+        enrollments={enrollments}
+        setUpdateModalOpen={setUpdateModalOpen}
+        selectedEnrollment={selectedEnrollment}
+        setEnrollments={setEnrollments}
+      />
+      <DeleteEnrollment
+        deleteModalOpen={deleteModalOpen}
+        setDeleteModalOpen={setDeleteModalOpen}
+        handleDeleteConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 };
 
-export default ViewAllEnrollments;
-
+export default EditEnrollment;

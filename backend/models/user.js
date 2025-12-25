@@ -4,6 +4,12 @@ module.exports = (sequelize, DataTypes) => {
   const User = sequelize.define(
     "User", // ✅ SINGULAR – critical
     {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: DataTypes.INTEGER,
+      },
       userId: {
         allowNull: false,
         unique: true,
@@ -30,10 +36,6 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.ENUM("student", "staff", "admin"),
         allowNull: false,
       },
-      department: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
       gender: {
         type: DataTypes.ENUM("Male", "Female"),
         allowNull: false,
@@ -42,6 +44,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      department: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
       profilePic: {
         type: DataTypes.STRING,
         allowNull: false,
@@ -49,6 +55,14 @@ module.exports = (sequelize, DataTypes) => {
       refreshToken: {
         type: DataTypes.STRING,
         allowNull: true,
+      },
+      createdAt: {
+        allowNull: false,
+        type: DataTypes.DATE,
+      },
+      updatedAt: {
+        allowNull: false,
+        type: DataTypes.DATE,
       },
     },
     {

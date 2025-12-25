@@ -6,7 +6,7 @@ const { validateAndSaveFile } = require("../services/fileHandler");
 // Create evidence
 const createEvidence = async (req, res, next) => {
   try {
-    const { studentId, unitCode, description } = req.body;
+    const { unitCode, description } = req.body;
 
     if (!req.file) {
       return res.status(400).json({
@@ -17,7 +17,7 @@ const createEvidence = async (req, res, next) => {
 
     // Verify student exists
     const student = await User.findOne({
-      where: { userId: studentId, role: "student" },
+      where: { userId: req.userId, role: "student" },
     });
     if (!student) {
       return res.status(404).json({
@@ -38,7 +38,7 @@ const createEvidence = async (req, res, next) => {
     // Determine evidence type based on MIME type
     const mimeType = req.file.mimetype;
     let evidenceType = "image";
-    
+
     if (mimeType.startsWith("video/")) {
       evidenceType = "video";
     } else if (mimeType.startsWith("image/")) {
@@ -46,9 +46,16 @@ const createEvidence = async (req, res, next) => {
     }
 
     // Validate and save file
-    const allowedTypes = evidenceType === "video" 
-      ? ["video/mp4", "video/mpeg", "video/quicktime", "video/x-msvideo", "video/webm"]
-      : ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    const allowedTypes =
+      evidenceType === "video"
+        ? [
+            "video/mp4",
+            "video/mpeg",
+            "video/quicktime",
+            "video/x-msvideo",
+            "video/webm",
+          ]
+        : ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
     const filePath = await validateAndSaveFile(req.file, "evidences", {
       allowedTypes,
@@ -58,8 +65,8 @@ const createEvidence = async (req, res, next) => {
     const filepath = filePath.replace(/\\/g, "/").replace("public/", "");
 
     const evidence = await Evidence.create({
-      studentId,
-      unitCode,
+      studentId: student.id,
+      unitId: unit.unitId,
       filename: filepath,
       originalname: req.file.originalname,
       description: description || null,
@@ -108,11 +115,17 @@ const getAllEvidence = async (req, res, next) => {
 // Get evidence by student - organized by unit then by type
 const getEvidenceByStudent = async (req, res, next) => {
   try {
-    const { studentId } = req.params;
+    const { studentId } = req.params; // This is the alphanumeric userId (e.g., IN13/...)
 
     const evidence = await Evidence.findAll({
-      where: { studentId },
       include: [
+        {
+          model: User,
+          as: "User",
+          attributes: ["userId", "firstname", "lastname"],
+          where: { userId: studentId }, // Filter Evidence by User.userId
+          required: true, // Inner Join
+        },
         {
           model: Unit,
           as: "Unit",
@@ -120,16 +133,18 @@ const getEvidenceByStudent = async (req, res, next) => {
         },
       ],
       order: [
-        ["unitCode", "ASC"],
+        // FIX: Reference the column via the Included Model
+        [{ model: Unit, as: "Unit" }, "unitCode", "ASC"],
         ["evidenceType", "ASC"],
         ["uploadedAt", "DESC"],
       ],
     });
 
-    // Group by unit, then by type
     const organized = {};
     evidence.forEach((item) => {
-      const unitCode = item.unitCode;
+      // Use the unitCode from the included Unit model
+      const unitCode = item.Unit?.unitCode || "Unknown";
+
       if (!organized[unitCode]) {
         organized[unitCode] = {
           unitCode,
@@ -138,6 +153,7 @@ const getEvidenceByStudent = async (req, res, next) => {
           videos: [],
         };
       }
+
       if (item.evidenceType === "image") {
         organized[unitCode].images.push(item);
       } else {
@@ -150,6 +166,7 @@ const getEvidenceByStudent = async (req, res, next) => {
       data: Object.values(organized),
     });
   } catch (error) {
+    console.error("Query Error:", error);
     next(error);
   }
 };
@@ -229,20 +246,28 @@ const updateEvidence = async (req, res, next) => {
     if (req.file) {
       const mimeType = req.file.mimetype;
       let evidenceType = "image";
-      
+
       if (mimeType.startsWith("video/")) {
         evidenceType = "video";
       } else if (mimeType.startsWith("image/")) {
         evidenceType = "image";
       }
 
-      const allowedTypes = evidenceType === "video" 
-        ? ["video/mp4", "video/mpeg", "video/quicktime", "video/x-msvideo", "video/webm"]
-        : ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      const allowedTypes =
+        evidenceType === "video"
+          ? [
+              "video/mp4",
+              "video/mpeg",
+              "video/quicktime",
+              "video/x-msvideo",
+              "video/webm",
+            ]
+          : ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
       const filePath = await validateAndSaveFile(req.file, "evidences", {
         allowedTypes,
-        maxSize: evidenceType === "video" ? 100 * 1024 * 1024 : 10 * 1024 * 1024,
+        maxSize:
+          evidenceType === "video" ? 100 * 1024 * 1024 : 10 * 1024 * 1024,
       });
       const filepath = filePath.replace(/\\/g, "/").replace("public/", "");
       evidence.filename = filepath;
@@ -294,4 +319,3 @@ module.exports = {
   updateEvidence,
   deleteEvidence,
 };
-
