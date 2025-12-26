@@ -3,15 +3,9 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable("Units", {
-      unitId: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
-        type: Sequelize.INTEGER,
-      },
       unitCode: {
         type: Sequelize.STRING,
-        unique: true,
+        primaryKey: true,
         allowNull: false,
       },
       unitName: {
@@ -21,11 +15,11 @@ module.exports = {
       },
 
       staffId: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING,
         allowNull: false,
         references: {
           model: "Users",
-          key: "id",
+          key: "userId",
         },
         onDelete: "CASCADE",
         onUpdate: "CASCADE",

@@ -4,14 +4,9 @@ module.exports = (sequelize, DataTypes) => {
   const User = sequelize.define(
     "User", // ✅ SINGULAR – critical
     {
-      id: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
-        type: DataTypes.INTEGER,
-      },
       userId: {
         allowNull: false,
+        primaryKey: true,
         unique: true,
         type: DataTypes.STRING,
       },

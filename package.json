@@ -4,10 +4,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-       "start": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "start": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "backend": "npm run dev --prefix backend",
     "frontend": "npm run dev --prefix frontend"
-
   },
   "keywords": [],
   "author": "",
@@ -15,5 +14,9 @@
   "description": "",
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0"
   }
 }

@@ -24,9 +24,6 @@ const EditStudent = () => {
   const [currentValue, setCurrentValue] = useState("");
 
   const schemaOptions = {
-    email: [],
-    firstname: [],
-    lastname: [],
     department: [
       "Computer Science",
       "Engineering",
@@ -34,9 +31,8 @@ const EditStudent = () => {
       "Business",
       "Accounting",
     ],
-    level: ["100", "200", "300", "400", "500"],
+    level: ["3", "4", "5", "6", "7"],
     gender: ["Male", "Female"],
-    role: ["student", "staff", "admin"],
   };
 
   /** FETCH STUDENTS */
@@ -127,7 +123,7 @@ const EditStudent = () => {
               >
                 {Object.keys(schemaOptions).map((key) => (
                   <option key={key} value={key}>
-                    {key.toUpperCase()}
+                    {key.toLowerCase()}
                   </option>
                 ))}
               </select>

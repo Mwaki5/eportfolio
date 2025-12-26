@@ -2,33 +2,35 @@ const express = require("express");
 const { sequelize } = require("./models");
 const errorHandler = require("./middlewares/errorHandler");
 const credentials = require("./middlewares/credentials");
-const corsOption = require("./config/corsOptions");
 const cors = require("cors");
-const app = express();
+const corsOption = require("./config/corsOptions");
 const cookieParser = require("cookie-parser");
 const AppError = require("./utils/AppError");
-const multer = require("multer");
+const path = require("path");
+const { logApp } = require("./utils/logger");
+const requestLogger = require("./middlewares/requestLogger");
 const { verifyJwt } = require("./middlewares/verifyJwt");
 
-// Configure multer for file uploads
-const upload = multer({ dest: "uploads/" });
+const app = express();
 
-// Log every request
-app.use((req, res, next) => {
-  // console.log("Incoming request:", req.method, req.url);
-  next();
-});
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static("public/"));
-app.use(express.static("uploads/"));
+// ======== MIDDLEWARES ========
 app.use(credentials);
 app.use(cors(corsOption));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use("/public", express.static(path.join(__dirname, "public")));
 
-app.use("/api/auth/", require("./routes/authRoutes"));
+// ======== REQUEST LOGGER ========
+app.use(requestLogger); // logs IP, route, method, userId, body, frontendUrl, device
+
+// ======== ROUTES ========
+// Unprotected
+app.use("/api/auth", require("./routes/authRoutes"));
+
+// JWT PROTECTED
 app.use(verifyJwt);
+
 // Protected routes
 app.use("/api/units", require("./routes/unitRoutes"));
 app.use("/api/enrollments", require("./routes/enrollmentRoutes"));
@@ -36,25 +38,29 @@ app.use("/api/evidences", require("./routes/evidenceRoutes"));
 app.use("/api/marks", require("./routes/markRoutes"));
 app.use("/api/students", require("./routes/studentRoutes"));
 
+// ======== 404 HANDLER ========
 app.use((req, res, next) => {
   next(new AppError(`Cannot find ${req.originalUrl} on this server`, 404));
 });
 
-// Centralized error handler (LAST)
+// ======== GLOBAL ERROR HANDLER ========
 app.use(errorHandler);
 
+// ======== DB & SERVER ========
 (async () => {
   try {
     await sequelize.authenticate();
-    //await sequelize.sync({ alter: true });
-    //await sequelize.sync({ force: true });
+    logApp("Database connected successfully");
 
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
+      logApp("Server started", { port: PORT });
       console.log(`Backend running on port ${PORT}`);
     });
-    console.log("Mysql connected successfully");
-  } catch (error) {
-    console.error("Unable to connect to Mysql:", error);
+  } catch (err) {
+    // Startup errors go to error log
+    const { logError } = require("./utils/logger");
+    logError("Startup failure", null, err);
+    console.error("Unable to connect to MySQL:", err);
   }
 })();

@@ -31,6 +31,7 @@ const ViewMyEnrollments = () => {
           `/api/enrollments/student/${encodeURIComponent(user.userId)}`
         );
         setEnrollments(res.data.data || []);
+        console.log(res.data.data);
       } catch (error) {
         setError(
           error.response?.data?.message || "Failed to fetch enrollments"
@@ -97,8 +98,8 @@ const ViewMyEnrollments = () => {
                     {enrollment.session}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
-                    {enrollment.Unit?.firstname || "N/A"}{" "}
-                    {enrollment.Unit?.lastname || "N/A"}
+                    {enrollment.Staff?.firstname || "N/A"}{" "}
+                    {enrollment.Staff?.lastname || "N/A"}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
                     {formatDate(enrollment.createdAt)}

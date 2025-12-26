@@ -16,8 +16,11 @@ import {
 import useAuth from "../hooks/useAuth";
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import useAxiosPrivate from "../hooks/useAxiosPrivate";
 
 const Admin = () => {
+  const axios = useAxiosPrivate();
+
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);

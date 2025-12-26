@@ -107,8 +107,7 @@ const ViewMarks = () => {
             >
               <option value="unitCode">Unit Code</option>
               <option value="session">Session</option>
-              <option value="userId">Student ID</option>
-              <option value="trainer">Trainer</option>
+              <option value="userId">Trainer ID</option>
             </select>
           </div>
 

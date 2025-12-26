@@ -1,51 +1,39 @@
+// controllers/evidenceController.js
 const { Evidence, Unit, User } = require("../models");
-const { Op } = require("sequelize");
 const AppError = require("../utils/AppError");
 const { validateAndSaveFile } = require("../services/fileHandler");
+const {
+  appLogger,
+  auditLogger,
+  errorLogger,
+  addRequestMetadata,
+} = require("../utils/logger");
 
-// Create evidence
+// Helper to determine evidence type
+const getEvidenceType = (mimeType) => {
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("image/")) return "image";
+  return "unknown";
+};
+
+// ===== CREATE EVIDENCE =====
 const createEvidence = async (req, res, next) => {
   try {
     const { unitCode, description } = req.body;
-
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "Evidence file is required",
-      });
-    }
+    if (!req.file) throw new AppError("Evidence file is required", 400);
 
     // Verify student exists
     const student = await User.findOne({
       where: { userId: req.userId, role: "student" },
     });
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: "Student not found",
-      });
-    }
+    if (!student) throw new AppError("Student not found", 404);
 
     // Verify unit exists
     const unit = await Unit.findOne({ where: { unitCode } });
-    if (!unit) {
-      return res.status(404).json({
-        success: false,
-        message: "Unit not found",
-      });
-    }
+    if (!unit) throw new AppError("Unit not found", 404);
 
-    // Determine evidence type based on MIME type
-    const mimeType = req.file.mimetype;
-    let evidenceType = "image";
-
-    if (mimeType.startsWith("video/")) {
-      evidenceType = "video";
-    } else if (mimeType.startsWith("image/")) {
-      evidenceType = "image";
-    }
-
-    // Validate and save file
+    // Determine evidence type
+    const evidenceType = getEvidenceType(req.file.mimetype);
     const allowedTypes =
       evidenceType === "video"
         ? [
@@ -59,14 +47,14 @@ const createEvidence = async (req, res, next) => {
 
     const filePath = await validateAndSaveFile(req.file, "evidences", {
       allowedTypes,
-      maxSize: evidenceType === "video" ? 100 * 1024 * 1024 : 10 * 1024 * 1024, // 100MB for videos, 10MB for images
+      maxSize: evidenceType === "video" ? 100 * 1024 * 1024 : 10 * 1024 * 1024,
     });
 
     const filepath = filePath.replace(/\\/g, "/").replace("public/", "");
 
     const evidence = await Evidence.create({
-      studentId: student.id,
-      unitId: unit.unitId,
+      studentId: req.userId,
+      unitCode: unit.unitCode,
       filename: filepath,
       originalname: req.file.originalname,
       description: description || null,
@@ -74,17 +62,26 @@ const createEvidence = async (req, res, next) => {
       uploadedAt: new Date(),
     });
 
+    auditLogger.info(
+      `Evidence uploaded by ${req.userId} for unit ${unitCode}`,
+      addRequestMetadata({ req, evidence })
+    );
+
     res.status(201).json({
       success: true,
       message: "Evidence uploaded successfully",
       data: evidence,
     });
   } catch (error) {
+    errorLogger.error(
+      "Create Evidence Error",
+      addRequestMetadata({ req, error })
+    );
     next(error);
   }
 };
 
-// Get all evidence
+// ===== GET ALL EVIDENCE =====
 const getAllEvidence = async (req, res, next) => {
   try {
     const evidence = await Evidence.findAll({
@@ -97,25 +94,26 @@ const getAllEvidence = async (req, res, next) => {
         {
           model: Unit,
           as: "Unit",
-          attributes: ["unitCode", "staffId"],
+          attributes: ["unitCode", "unitName", "staffId"],
         },
       ],
       order: [["uploadedAt", "DESC"]],
     });
 
-    res.status(200).json({
-      success: true,
-      data: evidence,
-    });
+    res.status(200).json({ success: true, data: evidence });
   } catch (error) {
+    errorLogger.error(
+      "Get All Evidence Error",
+      addRequestMetadata({ req, error })
+    );
     next(error);
   }
 };
 
-// Get evidence by student - organized by unit then by type
+// ===== GET EVIDENCE BY STUDENT =====
 const getEvidenceByStudent = async (req, res, next) => {
   try {
-    const { studentId } = req.params; // This is the alphanumeric userId (e.g., IN13/...)
+    const { studentId } = req.params;
 
     const evidence = await Evidence.findAll({
       include: [
@@ -123,8 +121,8 @@ const getEvidenceByStudent = async (req, res, next) => {
           model: User,
           as: "User",
           attributes: ["userId", "firstname", "lastname"],
-          where: { userId: studentId }, // Filter Evidence by User.userId
-          required: true, // Inner Join
+          where: { userId: studentId },
+          required: true,
         },
         {
           model: Unit,
@@ -133,7 +131,6 @@ const getEvidenceByStudent = async (req, res, next) => {
         },
       ],
       order: [
-        // FIX: Reference the column via the Included Model
         [{ model: Unit, as: "Unit" }, "unitCode", "ASC"],
         ["evidenceType", "ASC"],
         ["uploadedAt", "DESC"],
@@ -142,9 +139,7 @@ const getEvidenceByStudent = async (req, res, next) => {
 
     const organized = {};
     evidence.forEach((item) => {
-      // Use the unitCode from the included Unit model
       const unitCode = item.Unit?.unitCode || "Unknown";
-
       if (!organized[unitCode]) {
         organized[unitCode] = {
           unitCode,
@@ -153,25 +148,54 @@ const getEvidenceByStudent = async (req, res, next) => {
           videos: [],
         };
       }
-
-      if (item.evidenceType === "image") {
-        organized[unitCode].images.push(item);
-      } else {
+      if (item.evidenceType === "image") organized[unitCode].images.push(item);
+      else if (item.evidenceType === "video")
         organized[unitCode].videos.push(item);
-      }
     });
 
-    res.status(200).json({
-      success: true,
-      data: Object.values(organized),
-    });
+    res.status(200).json({ success: true, data: Object.values(organized) });
   } catch (error) {
-    console.error("Query Error:", error);
+    errorLogger.error(
+      "Get Evidence By Student Error",
+      addRequestMetadata({ req, error })
+    );
     next(error);
   }
 };
 
-// Get evidence by unit
+// ===== GET VIDEOS BY STUDENT PER UNIT (Lazy load) =====
+const getVideosByStudentUnit = async (req, res, next) => {
+  try {
+    const { studentId, unitCode } = req.params;
+
+    const videos = await Evidence.findAll({
+      where: { studentId, unitCode, evidenceType: "video" },
+      include: [
+        {
+          model: Unit,
+          as: "Unit",
+          attributes: ["unitCode", "unitName", "staffId"],
+        },
+        {
+          model: User,
+          as: "User",
+          attributes: ["userId", "firstname", "lastname"],
+        },
+      ],
+      order: [["uploadedAt", "DESC"]],
+    });
+
+    res.status(200).json({ success: true, data: videos });
+  } catch (error) {
+    errorLogger.error(
+      "Get Videos By Student Unit Error",
+      addRequestMetadata({ req, error })
+    );
+    next(error);
+  }
+};
+
+// ===== GET EVIDENCE BY UNIT =====
 const getEvidenceByUnit = async (req, res, next) => {
   try {
     const { unitCode } = req.params;
@@ -188,71 +212,43 @@ const getEvidenceByUnit = async (req, res, next) => {
       order: [["uploadedAt", "DESC"]],
     });
 
-    res.status(200).json({
-      success: true,
-      data: evidence,
-    });
+    res.status(200).json({ success: true, data: evidence });
   } catch (error) {
+    errorLogger.error(
+      "Get Evidence By Unit Error",
+      addRequestMetadata({ req, error })
+    );
     next(error);
   }
 };
 
-// Update evidence
+// ===== UPDATE EVIDENCE =====
 const updateEvidence = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { studentId, unitCode, description } = req.body;
 
     const evidence = await Evidence.findByPk(id);
-    if (!evidence) {
-      return res.status(404).json({
-        success: false,
-        message: "Evidence not found",
-      });
-    }
+    if (!evidence) throw new AppError("Evidence not found", 404);
 
-    // Verify student exists if being updated
     if (studentId) {
       const student = await User.findOne({
         where: { userId: studentId, role: "student" },
       });
-      if (!student) {
-        return res.status(404).json({
-          success: false,
-          message: "Student not found",
-        });
-      }
+      if (!student) throw new AppError("Student not found", 404);
       evidence.studentId = studentId;
     }
 
-    // Verify unit exists if being updated
     if (unitCode) {
       const unit = await Unit.findOne({ where: { unitCode } });
-      if (!unit) {
-        return res.status(404).json({
-          success: false,
-          message: "Unit not found",
-        });
-      }
+      if (!unit) throw new AppError("Unit not found", 404);
       evidence.unitCode = unitCode;
     }
 
-    // Update description if provided
-    if (description !== undefined) {
-      evidence.description = description;
-    }
+    if (description !== undefined) evidence.description = description;
 
-    // Update file if provided
     if (req.file) {
-      const mimeType = req.file.mimetype;
-      let evidenceType = "image";
-
-      if (mimeType.startsWith("video/")) {
-        evidenceType = "video";
-      } else if (mimeType.startsWith("image/")) {
-        evidenceType = "image";
-      }
-
+      const evidenceType = getEvidenceType(req.file.mimetype);
       const allowedTypes =
         evidenceType === "video"
           ? [
@@ -270,43 +266,52 @@ const updateEvidence = async (req, res, next) => {
           evidenceType === "video" ? 100 * 1024 * 1024 : 10 * 1024 * 1024,
       });
       const filepath = filePath.replace(/\\/g, "/").replace("public/", "");
+
       evidence.filename = filepath;
       evidence.originalname = req.file.originalname;
       evidence.evidenceType = evidenceType;
     }
 
     await evidence.save();
+    auditLogger.info(
+      `Evidence updated: ID ${id}`,
+      addRequestMetadata({ req, evidence })
+    );
 
-    res.status(200).json({
-      success: true,
-      message: "Evidence updated successfully",
-      data: evidence,
-    });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Evidence updated successfully",
+        data: evidence,
+      });
   } catch (error) {
+    errorLogger.error(
+      "Update Evidence Error",
+      addRequestMetadata({ req, error })
+    );
     next(error);
   }
 };
 
-// Delete evidence
+// ===== DELETE EVIDENCE =====
 const deleteEvidence = async (req, res, next) => {
   try {
     const { id } = req.params;
-
     const evidence = await Evidence.findByPk(id);
-    if (!evidence) {
-      return res.status(404).json({
-        success: false,
-        message: "Evidence not found",
-      });
-    }
+    if (!evidence) throw new AppError("Evidence not found", 404);
 
     await evidence.destroy();
+    auditLogger.info(`Evidence deleted: ID ${id}`, addRequestMetadata({ req }));
 
-    res.status(200).json({
-      success: true,
-      message: "Evidence deleted successfully",
-    });
+    res
+      .status(200)
+      .json({ success: true, message: "Evidence deleted successfully" });
   } catch (error) {
+    errorLogger.error(
+      "Delete Evidence Error",
+      addRequestMetadata({ req, error })
+    );
     next(error);
   }
 };
@@ -315,6 +320,7 @@ module.exports = {
   createEvidence,
   getAllEvidence,
   getEvidenceByStudent,
+  getVideosByStudentUnit,
   getEvidenceByUnit,
   updateEvidence,
   deleteEvidence,

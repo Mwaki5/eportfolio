@@ -1,49 +1,49 @@
+// controllers/enrollmentController.js
 const { Enrollment, Unit, User } = require("../models");
-const { Op } = require("sequelize");
-const { Sequelize } = require("sequelize");
+const { Op, Sequelize } = require("sequelize");
+const {
+  appLogger,
+  auditLogger,
+  errorLogger,
+  addRequestMetadata,
+} = require("../utils/logger");
 const AppError = require("../utils/AppError");
 
-// Create enrollment
+// Helper to validate values
+const isValid = (val) => val && val !== "undefined" && val.trim() !== "";
+
+// --- Create Enrollment ---
 const createEnrollment = async (req, res, next) => {
   try {
     const { studentId, unitCode, session } = req.body;
 
-    // Verify student exists
+    // Verify student
     const student = await User.findOne({
       where: { userId: studentId, role: "student" },
     });
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: "Student not found",
-      });
-    }
+    if (!student) throw new AppError("Student not found", 404);
 
-    // Verify unit exists
+    // Verify unit
     const unit = await Unit.findOne({ where: { unitCode } });
-    if (!unit) {
-      return res.status(404).json({
-        success: false,
-        message: "Unit not found",
-      });
-    }
+    if (!unit) throw new AppError("Unit not found", 404);
 
-    // Check if enrollment already exists
+    // Check existing enrollment
     const existingEnrollment = await Enrollment.findOne({
-      where: { studentId: student.id, unitId: unit.unitId, session },
+      where: { studentId, unitCode, session },
     });
-    if (existingEnrollment) {
-      return res.status(409).json({
-        success: false,
-        message: "Student is already enrolled in this unit for this session",
-      });
-    }
+    if (existingEnrollment)
+      throw new AppError("Student already enrolled for this session", 409);
 
     const enrollment = await Enrollment.create({
-      studentId: student.id,
-      unitId: unit.unitId,
+      studentId,
+      unitCode,
       session,
     });
+
+    auditLogger.info(
+      `Enrollment created: ${studentId} in ${unitCode} for ${session}`,
+      addRequestMetadata({ req, enrollment })
+    );
 
     res.status(201).json({
       success: true,
@@ -51,11 +51,15 @@ const createEnrollment = async (req, res, next) => {
       data: enrollment,
     });
   } catch (error) {
+    errorLogger.error(
+      "Create Enrollment Error",
+      addRequestMetadata({ req, error })
+    );
     next(error);
   }
 };
 
-// Get all enrollments
+// --- Get All Enrollments ---
 const getAllEnrollments = async (req, res, next) => {
   try {
     const enrollments = await Enrollment.findAll({
@@ -73,16 +77,17 @@ const getAllEnrollments = async (req, res, next) => {
       ],
     });
 
-    res.status(200).json({
-      success: true,
-      data: enrollments,
-    });
+    res.status(200).json({ success: true, data: enrollments });
   } catch (error) {
+    errorLogger.error(
+      "Get All Enrollments Error",
+      addRequestMetadata({ req, error })
+    );
     next(error);
   }
 };
 
-// Get enrollments by student
+// --- Get Enrollments by Student ---
 const getEnrollmentsByStudent = async (req, res, next) => {
   try {
     const { studentId } = req.params;
@@ -90,33 +95,24 @@ const getEnrollmentsByStudent = async (req, res, next) => {
     const student = await User.findOne({
       where: { userId: studentId, role: "student" },
     });
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: "Student not found",
-      });
-    }
+    if (!student) throw new AppError("Student not found", 404);
 
     const enrollments = await Enrollment.findAll({
-      where: { studentId: student.id },
-      include: [
-        {
-          model: Unit,
-          as: "Unit",
-          // attributes: ["unitCode", "staffId"],
-        },
-      ],
+      where: { studentId },
+      include: [{ model: Unit, as: "Unit" }],
     });
-    res.status(200).json({
-      success: true,
-      data: enrollments,
-    });
+
+    res.status(200).json({ success: true, data: enrollments });
   } catch (error) {
+    errorLogger.error(
+      "Get Enrollments By Student Error",
+      addRequestMetadata({ req, error })
+    );
     next(error);
   }
 };
 
-// Get enrollments by unit
+// --- Get Enrollments by Unit ---
 const getEnrollmentsByUnit = async (req, res, next) => {
   try {
     const { unitCode } = req.params;
@@ -132,61 +128,47 @@ const getEnrollmentsByUnit = async (req, res, next) => {
       ],
     });
 
-    res.status(200).json({
-      success: true,
-      data: enrollments,
-    });
+    res.status(200).json({ success: true, data: enrollments });
   } catch (error) {
+    errorLogger.error(
+      "Get Enrollments By Unit Error",
+      addRequestMetadata({ req, error })
+    );
     next(error);
   }
 };
 
-// Update enrollment
+// --- Update Enrollment ---
 const updateEnrollment = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { studentId, unitCode, session } = req.body;
 
     const enrollment = await Enrollment.findByPk(id);
-    if (!enrollment) {
-      return res.status(404).json({
-        success: false,
-        message: "Enrollment not found",
-      });
-    }
+    if (!enrollment) throw new AppError("Enrollment not found", 404);
 
-    // Verify student exists if being updated
     if (studentId) {
       const student = await User.findOne({
         where: { userId: studentId, role: "student" },
       });
-      if (!student) {
-        return res.status(404).json({
-          success: false,
-          message: "Student not found",
-        });
-      }
-      enrollment.studentId = student.id;
+      if (!student) throw new AppError("Student not found", 404);
+      enrollment.studentId = student.userId;
     }
 
-    // Verify unit exists if being updated
     if (unitCode) {
       const unit = await Unit.findOne({ where: { unitCode } });
-      if (!unit) {
-        return res.status(404).json({
-          success: false,
-          message: "Unit not found",
-        });
-      }
-      enrollment.unitId = unit.unitId;
+      if (!unit) throw new AppError("Unit not found", 404);
+      enrollment.unitCode = unit.unitCode;
     }
 
-    // Update session if provided
-    if (session) {
-      enrollment.session = session;
-    }
+    if (session) enrollment.session = session;
 
     await enrollment.save();
+
+    auditLogger.info(
+      `Enrollment updated: ID ${id}`,
+      addRequestMetadata({ req, enrollment })
+    );
 
     res.status(200).json({
       success: true,
@@ -194,52 +176,52 @@ const updateEnrollment = async (req, res, next) => {
       data: enrollment,
     });
   } catch (error) {
+    errorLogger.error(
+      "Update Enrollment Error",
+      addRequestMetadata({ req, error })
+    );
     next(error);
   }
 };
 
-// Delete enrollment
+// --- Delete Enrollment ---
 const deleteEnrollment = async (req, res, next) => {
   try {
     const { id } = req.params;
-
     const enrollment = await Enrollment.findByPk(id);
-    if (!enrollment) {
-      return res.status(404).json({
-        success: false,
-        message: "Enrollment not found",
-      });
-    }
+    if (!enrollment) throw new AppError("Enrollment not found", 404);
 
     await enrollment.destroy();
 
-    res.status(200).json({
-      success: true,
-      message: "Enrollment deleted successfully",
-    });
+    auditLogger.info(
+      `Enrollment deleted: ID ${id}`,
+      addRequestMetadata({ req })
+    );
+
+    res
+      .status(200)
+      .json({ success: true, message: "Enrollment deleted successfully" });
   } catch (error) {
+    errorLogger.error(
+      "Delete Enrollment Error",
+      addRequestMetadata({ req, error })
+    );
     next(error);
   }
 };
 
-// Search enrollments
+// --- Search / Filter Enrollments ---
 const searchEnrollments = async (req, res, next) => {
   try {
     const { identifier } = req.params;
-
-    if (!identifier) {
-      return res.status(400).json({
-        success: false,
-        message: "Search parameter is required",
-      });
-    }
+    if (!identifier) throw new AppError("Search parameter is required", 400);
 
     const enrollments = await Enrollment.findAll({
       where: {
         [Op.or]: [
-          { session: { [Op.like]: identifier } }, // Enrollment table
-          { "$Unit.unitCode$": { [Op.like]: identifier } }, // Unit table
-          { "$User.userId$": { [Op.like]: identifier } }, // User table
+          { session: { [Op.like]: `%${identifier}%` } },
+          { "$Unit.unitCode$": { [Op.like]: `%${identifier}%` } },
+          { "$User.userId$": { [Op.like]: `%${identifier}%` } },
         ],
       },
       include: [
@@ -254,33 +236,32 @@ const searchEnrollments = async (req, res, next) => {
           attributes: ["unitCode", "unitName", "staffId"],
         },
       ],
-      attributes: {
-        exclude: ["createdAt", "updatedAt"],
-      },
       limit: 50,
     });
 
-    res.status(200).json({
-      success: true,
-      data: enrollments,
-    });
+    res.status(200).json({ success: true, data: enrollments });
   } catch (error) {
+    errorLogger.error(
+      "Search Enrollments Error",
+      addRequestMetadata({ req, error })
+    );
     next(error);
   }
 };
 
+// --- Filter Enrollments with Query Params ---
 const filterEnrollments = async (req, res, next) => {
   try {
-    const { studentId, unitId, session, query } = req.query;
+    const { studentId, unitCode, session } = req.query;
     let whereClause = {};
-    const isValid = (val) => val && val !== "undefined" && val.trim() !== "";
     if (isValid(studentId))
       whereClause.studentId = { [Op.like]: `%${studentId}%` };
-    if (isValid(unitId)) whereClause.unitId = { [Op.like]: `%${unitId}%` };
+    if (isValid(unitCode))
+      whereClause.unitCode = { [Op.like]: `%${unitCode}%` };
     if (isValid(session)) whereClause.session = { [Op.like]: `%${session}%` };
 
     const enrollments = await Enrollment.findAll({
-      where: whereClause, // Sequelize joins these with AND by default
+      where: whereClause,
       include: [
         {
           model: User,
@@ -290,72 +271,67 @@ const filterEnrollments = async (req, res, next) => {
         {
           model: Unit,
           as: "Unit",
-          attributes: ["unitCode", "staffId", "unitName"],
+          attributes: ["unitCode", "unitName", "staffId"],
         },
       ],
-      attributes: {
-        exclude: ["createdAt", "updatedAt"],
-      },
       limit: 50,
     });
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       count: enrollments.length,
       data: enrollments,
     });
   } catch (error) {
-    console.error("Filter Enrollments Error:", error);
-    if (res.headersSent) return next(error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
-    });
+    errorLogger.error(
+      "Filter Enrollments Error",
+      addRequestMetadata({ req, error })
+    );
+    next(error);
   }
 };
+
+// --- Get Enrolled Sessions ---
 const getEnrolledSessions = async (req, res, next) => {
   try {
     const { studentId } = req.params;
 
-    // Fetch distinct sessions for the student
     const sessions = await Enrollment.findAll({
       include: [
         {
           model: User,
-          as: "User", // match your association alias
-          where: { userId: studentId }, // filter by userId
-          attributes: [], // no user attributes needed
+          as: "User",
+          where: { userId: studentId },
+          attributes: [],
         },
       ],
       attributes: [
         [Sequelize.fn("DISTINCT", Sequelize.col("session")), "session"],
       ],
-      raw: true, // return plain objects
+      raw: true,
       order: [["session", "ASC"]],
     });
 
-    return res.status(200).json({
-      success: true,
-      data: sessions.map((s) => s.session),
-    });
+    res
+      .status(200)
+      .json({ success: true, data: sessions.map((s) => s.session) });
   } catch (error) {
-    console.error("Filter Enrollments Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
-    });
+    errorLogger.error(
+      "Get Enrolled Sessions Error",
+      addRequestMetadata({ req, error })
+    );
+    next(error);
   }
 };
 
 module.exports = {
   createEnrollment,
-  filterEnrollments,
   getAllEnrollments,
-  getEnrolledSessions,
   getEnrollmentsByStudent,
   getEnrollmentsByUnit,
   updateEnrollment,
   deleteEnrollment,
   searchEnrollments,
+  filterEnrollments,
+  getEnrolledSessions,
 };

@@ -11,6 +11,7 @@ import {
   FaGraduationCap,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import ProfileAvatar from "../../components/ProfileAvator";
 
 const ViewMyProfile = () => {
   const axios = useAxiosPrivate();
@@ -74,12 +75,10 @@ const ViewMyProfile = () => {
           {/* Profile Picture */}
           <div className="flex-shrink-0">
             <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-green-500">
-              <img
-                src={`http://localhost:5000/${encodeURIComponent(
-                  profile.profilePic
-                )}`}
-                alt="Profile"
-                className="w-full h-full object-cover"
+              <ProfileAvatar
+                profilePic={profile.profilePic}
+                rounded={true}
+                className="border border-gray-200 h-full w-full"
               />
             </div>
           </div>

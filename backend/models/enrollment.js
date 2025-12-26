@@ -12,22 +12,22 @@ module.exports = (sequelize, DataTypes) => {
       },
 
       studentId: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING,
         allowNull: false,
         references: {
           model: "Users",
-          key: "id",
+          key: "userId",
         },
         onDelete: "CASCADE",
         onUpdate: "CASCADE",
       },
 
-      unitId: {
-        type: DataTypes.INTEGER,
+      unitCode: {
+        type: DataTypes.STRING,
         allowNull: false,
         references: {
           model: "Units",
-          key: "unitId",
+          key: "unitCode",
         },
         onDelete: "CASCADE",
         onUpdate: "CASCADE",
@@ -56,7 +56,7 @@ module.exports = (sequelize, DataTypes) => {
 
   Enrollment.associate = (models) => {
     Enrollment.belongsTo(models.User, { foreignKey: "studentId", as: "User" });
-    Enrollment.belongsTo(models.Unit, { foreignKey: "unitId", as: "Unit" });
+    Enrollment.belongsTo(models.Unit, { foreignKey: "unitCode", as: "Unit" });
   };
 
   return Enrollment;

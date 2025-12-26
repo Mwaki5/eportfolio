@@ -25,11 +25,9 @@ const FilterEnrollment = () => {
 
   // Define filter options
   const schemaOptions = {
-    studentName: [],
-    studentEmail: [],
     unitCode: [],
-    level: ["100", "200", "300", "400", "500"],
-    semester: ["Spring", "Summer", "Fall"],
+    level: ["Level 4", "Level 5", "Level 6"],
+    semester: ["2025/2026 April", "Summer", "Fall"],
   };
 
   /** Fetch enrollments based on active filters */

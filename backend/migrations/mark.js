@@ -10,21 +10,21 @@ module.exports = {
         type: Sequelize.INTEGER,
       },
       studentId: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING,
         allowNull: false,
         references: {
           model: "Users",
-          key: "id",
+          key: "userId",
         },
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
       },
-      unitId: {
-        type: Sequelize.INTEGER,
+      unitCode: {
+        type: Sequelize.STRING,
         allowNull: false,
         references: {
           model: "Units",
-          key: "unitId",
+          key: "unitCode",
         },
         onDelete: "CASCADE",
         onUpdate: "CASCADE",

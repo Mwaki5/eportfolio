@@ -4,14 +4,9 @@ module.exports = (sequelize, DataTypes) => {
   const Unit = sequelize.define(
     "Unit",
     {
-      unitId: {
-        allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
-        type: DataTypes.INTEGER,
-      },
       unitCode: {
         type: DataTypes.STRING,
+        primaryKey: true,
         unique: true,
         allowNull: false,
       },
@@ -22,11 +17,11 @@ module.exports = (sequelize, DataTypes) => {
       },
 
       staffId: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING,
         allowNull: false,
         references: {
           model: "Users",
-          key: "id",
+          key: "userId",
         },
         onDelete: "CASCADE",
         onUpdate: "CASCADE",
@@ -48,8 +43,8 @@ module.exports = (sequelize, DataTypes) => {
 
   Unit.associate = (models) => {
     Unit.belongsTo(models.User, { foreignKey: "staffId", as: "Staff" });
-    Unit.hasMany(models.Marks, { foreignKey: "unitId" });
-    Unit.hasMany(models.Enrollment, { foreignKey: "unitId" });
+    Unit.hasMany(models.Marks, { foreignKey: "unitCode" });
+    Unit.hasMany(models.Enrollment, { foreignKey: "unitCode" });
   };
 
   return Unit;

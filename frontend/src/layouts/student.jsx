@@ -12,11 +12,14 @@ import {
 import useAuth from "../hooks/useAuth";
 import { Link, Outlet } from "react-router-dom";
 import { toast } from "react-toastify";
+import useAxiosPrivate from "../hooks/useAxiosPrivate";
+import ProfileAvatar from "../components/ProfileAvator";
 
 const Trainer = () => {
+  const axios = useAxiosPrivate();
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { email, profilePic } = user || {};
+  const { email, lastname, profilePic } = user || {};
 
   const handleLogout = () => {
     logout();
@@ -45,14 +48,14 @@ const Trainer = () => {
         </div>
         <div className="user flex items-center gap-3">
           <div className="hidden sm:block text-right">
-            <p className="text-sm font-medium text-gray-700">{email}</p>
+            <p className="text-sm font-medium text-gray-700">{lastname}</p>
             <p className="text-xs text-gray-500">Student</p>
           </div>
-          <div className="rounded-full">
-            <img
-              className="h-10 w-10 rounded-full object-cover"
-              src={`http://localhost:5000/${encodeURIComponent(profilePic)}`}
-              alt="profile"
+          <div className="rounded-full h-10 w-10 overflow-hidden">
+            <ProfileAvatar
+              profilePic={profilePic}
+              rounded={true}
+              className="border border-gray-200 h-full w-full"
             />
           </div>
         </div>
@@ -62,7 +65,7 @@ const Trainer = () => {
         {/* Overlay for mobile */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+            className="fixed inset-0 bg-opacity-50 z-30 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -86,30 +89,6 @@ const Trainer = () => {
               <FaArchway className="mr-3" />
               Dashboard
             </Link>
-
-            {/* Profile Management */}
-            <details className="group">
-              <summary className="flex items-center cursor-pointer px-2 py-2 rounded hover:bg-gray-800 transition-colors">
-                <FaUserGraduate className="mr-3" />
-                My Profile
-              </summary>
-              <div className="ml-8 mt-2 space-y-1">
-                <Link
-                  to="/student/profile/view"
-                  className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  View Profile
-                </Link>
-                <Link
-                  to="/student/profile/edit"
-                  className="block px-2 py-1 rounded hover:bg-gray-700 transition-colors"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  Edit Profile
-                </Link>
-              </div>
-            </details>
 
             {/* Evidence Management */}
             <details className="group">
@@ -152,7 +131,17 @@ const Trainer = () => {
               onClick={() => setSidebarOpen(false)}
             >
               <FaBook className="mr-3" />
-              My Enrolled Units
+              Enrolled Units
+            </Link>
+            {/* Profile Management */}
+
+            <Link
+              to="/student/profile/view"
+              className="flex items-center px-2 py-2 rounded hover:bg-gray-800 transition-colors"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <FaUserGraduate className="mr-3" />
+              View Profile
             </Link>
           </nav>
 

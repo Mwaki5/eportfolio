@@ -39,7 +39,7 @@ const createMarks = async (req, res, next) => {
     }
 
     const enrollment = await Enrollment.findOne({
-      where: { unitId: unit.unitId, studentId: student.id },
+      where: { unitCode, studentId },
     });
     if (!enrollment) {
       return res.status(404).json({
@@ -50,7 +50,7 @@ const createMarks = async (req, res, next) => {
 
     // Check if marks already exist for this student and unit
     const existingMarks = await Marks.findOne({
-      where: { studentId: student.id, unitId: unit.unitId },
+      where: { studentId, unitCode },
     });
 
     let marks;
@@ -79,8 +79,8 @@ const createMarks = async (req, res, next) => {
     } else {
       // Create new marks record
       marks = await Marks.create({
-        studentId: student.id,
-        unitId: unit.unitId,
+        studentId: studentId,
+        unitCode: unit.unitCode,
         theory1: theory1 || null,
         theory2: theory2 || null,
         theory3: theory3 || null,
@@ -98,6 +98,7 @@ const createMarks = async (req, res, next) => {
       data: marks,
     });
   } catch (error) {
+    console.log(error);
     next(error);
   }
 };
@@ -145,7 +146,7 @@ const getMarksByStudentId = async (req, res, next) => {
     }
 
     const marks = await Marks.findAll({
-      where: { studentId: student.id },
+      where: { studentId: userId },
       include: [
         {
           model: Unit,

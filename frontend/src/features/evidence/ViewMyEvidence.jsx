@@ -5,224 +5,277 @@ import Spinner from "../../components/Spinner";
 import { toast } from "react-toastify";
 import {
   FaFile,
+  FaVideo,
   FaDownload,
-  FaTrash,
   FaUpload,
   FaFileUpload,
+  FaChevronDown,
+  FaChevronUp,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import ProfileAvatar from "../../components/ProfileAvator";
+import Modal from "../../components/Modal";
+import Video from "../../components/Video";
 
 const ViewMyEvidence = () => {
   const axios = useAxiosPrivate();
   const { user } = useAuth();
-  const [evidences, setEvidences] = useState([]);
+
+  const [units, setUnits] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState(null);
+
+  const [expandedUnits, setExpandedUnits] = useState({});
+  const [expandedImages, setExpandedImages] = useState({});
+  const [expandedVideos, setExpandedVideos] = useState({});
+  const [loadedVideos, setLoadedVideos] = useState({});
 
   useEffect(() => {
     const fetchEvidences = async () => {
       if (!user?.userId) return;
-
       setIsLoading(true);
       setError(null);
       try {
         const res = await axios.get(
           `/api/evidences/student/${encodeURIComponent(user.userId)}`
         );
-        setEvidences(res.data.data || []);
-      } catch (error) {
-        setError(error.response?.data?.message || "Failed to fetch evidences");
+        setUnits(res.data.data || []);
+      } catch (err) {
+        setError(err.response?.data?.message || "Failed to fetch evidences");
         toast.error("Failed to load evidences");
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchEvidences();
   }, [axios, user?.userId]);
 
-  const handleDownload = (filename, originalname) => {
-    const fileUrl = `http://localhost:5000/${filename}`;
-    const link = document.createElement("a");
-    link.href = fileUrl;
-    link.download = originalname;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const formatDate = (dateString) =>
+    dateString
+      ? new Date(dateString).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      : "N/A";
+
+  const toggleUnit = (unitCode) =>
+    setExpandedUnits((prev) => ({ ...prev, [unitCode]: !prev[unitCode] }));
+
+  const toggleImages = (unitCode) =>
+    setExpandedImages((prev) => ({ ...prev, [unitCode]: !prev[unitCode] }));
+
+  const toggleVideos = (unitCode) =>
+    setExpandedVideos((prev) => ({ ...prev, [unitCode]: !prev[unitCode] }));
+
+  const loadVideos = async (unitCode) => {
+    if (loadedVideos[unitCode]) return;
+    try {
+      const res = await axios.get(
+        `/api/evidences/student/${encodeURIComponent(
+          user.userId
+        )}/unit/${unitCode}/videos`
+      );
+      setLoadedVideos((prev) => ({ ...prev, [unitCode]: res.data.data || [] }));
+    } catch (err) {
+      toast.error("Failed to load videos");
+    }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+  const openPreview = (file) => {
+    setPreviewFile(file);
+    setIsModalOpen(true);
   };
 
-  if (isLoading) {
+  if (isLoading)
     return (
       <div className="w-full flex justify-center items-center py-12">
         <Spinner size="large" />
       </div>
     );
-  }
+
+  if (!units || units.length === 0)
+    return (
+      <div className="bg-white border-2 border-dashed border-green-200 rounded-2xl p-12 text-center max-w-2xl mx-auto">
+        <div className="mb-6">
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-green-100 rounded-full mb-4">
+            <FaFileUpload className="text-5xl text-green-600" />
+          </div>
+        </div>
+        <h3 className="text-2xl font-bold text-gray-800 mb-2">
+          No Evidence Uploaded Yet
+        </h3>
+        <p className="text-gray-600 mb-6 text-lg">
+          Start building your portfolio by uploading your first evidence.
+        </p>
+        <Link
+          to="/student/evidence/add"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold rounded-xl shadow-lg hover:scale-105 transition"
+        >
+          <FaUpload /> Upload Your First Evidence
+        </Link>
+      </div>
+    );
 
   return (
-    <div className="w-full">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-          My Evidence
-        </h2>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
-          View all your uploaded evidence files
-        </p>
-      </div>
+    <div className="w-full space-y-6">
+      {units.map((unit) => {
+        const isUnitExpanded = expandedUnits[unit.unitCode] || false;
+        const isImagesExpanded = expandedImages[unit.unitCode] || false;
+        const isVideosExpanded = expandedVideos[unit.unitCode] || false;
+        const videos = loadedVideos[unit.unitCode] || [];
 
-      {error && (
-        <div className="bg-orange-100 border border-orange-400 text-orange-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
-
-      {(!evidences || evidences.length === 0) && !isLoading ? (
-        <div className="bg-white border-2 border-dashed border-green-200 rounded-2xl p-12 text-center max-w-2xl mx-auto">
-          <div className="mb-6">
-            <div className="inline-flex items-center justify-center w-24 h-24 bg-green-100 rounded-full mb-4">
-              <FaFileUpload className="text-5xl text-green-600" />
-            </div>
-          </div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-2">
-            No Evidence Uploaded Yet
-          </h3>
-          <p className="text-gray-600 mb-6 text-lg">
-            Start building your portfolio by uploading your first evidence.
-            Showcase your work, achievements, and progress!
-          </p>
-          <Link
-            to="/student/evidence/add"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+        return (
+          <div
+            key={unit.unitCode}
+            className="bg-white border border-gray-200 rounded-xl p-4 shadow-lg"
           >
-            <FaUpload />
-            Upload Your First Evidence
-          </Link>
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-500 mb-3">What can you upload?</p>
-            <div className="flex flex-wrap justify-center gap-3 text-xs text-gray-600">
-              <span className="px-3 py-1 bg-green-50 rounded-full">
-                📄 Practical Images
-              </span>
-              <span className="px-3 py-1 bg-green-50 rounded-full">
-                🖼️Practical Videos
-              </span>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {evidences.map((unitGroup) => (
+            {/* Unit Header */}
             <div
-              key={unitGroup.unitCode}
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-lg"
+              className="flex justify-between items-center cursor-pointer"
+              onClick={() => toggleUnit(unit.unitCode)}
             >
-              <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
-                {unitGroup.unitCode} - {unitGroup.unitName || "Unit"}
+              <h3 className="text-xl font-bold text-gray-800">
+                {unit.unitCode} - {unit.unitName || "Unit"}
               </h3>
-
-              {/* Images Section */}
-              {unitGroup.images && unitGroup.images.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                    <FaFile className="text-blue-500" />
-                    Images ({unitGroup.images.length})
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {unitGroup.images.map((evidence) => (
-                      <div
-                        key={evidence.id}
-                        className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 shadow-md hover:shadow-lg transition-all duration-300"
-                      >
-                        <div className="rounded-lg w-full mb-3 overflow-hidden">
-                          <img
-                            src={`http://localhost:5000/${evidence.filename}`}
-                            alt={evidence.description || "Evidence"}
-                            className="w-full h-48 object-cover rounded-lg"
-                          />
-                        </div>
-                        <div className="mb-2">
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {formatDate(evidence.uploadedAt)}
-                          </p>
-                          {evidence.description && (
-                            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                              {evidence.description}
-                            </p>
-                          )}
-                        </div>
-                        <a
-                          href={`http://localhost:5000/${evidence.filename}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                        >
-                          <FaDownload /> View Full Size
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Videos Section */}
-              {unitGroup.videos && unitGroup.videos.length > 0 && (
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                    <FaFile className="text-red-500" />
-                    Videos ({unitGroup.videos.length})
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {unitGroup.videos.map((evidence) => (
-                      <div
-                        key={evidence.id}
-                        className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 shadow-md hover:shadow-lg transition-all duration-300"
-                      >
-                        <div className="rounded-lg w-full mb-3 overflow-hidden">
-                          <video
-                            src={`http://localhost:5000/${evidence.filename}`}
-                            controls
-                            className="w-full h-48 object-cover rounded-lg"
-                          >
-                            Your browser does not support the video tag.
-                          </video>
-                        </div>
-                        <div className="mb-2">
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {formatDate(evidence.uploadedAt)}
-                          </p>
-                          {evidence.description && (
-                            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                              {evidence.description}
-                            </p>
-                          )}
-                        </div>
-                        <a
-                          href={`http://localhost:5000/${evidence.filename}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                        >
-                          <FaDownload /> Download Video
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <span>
+                {isUnitExpanded ? <FaChevronUp /> : <FaChevronDown />}
+              </span>
             </div>
-          ))}
-        </div>
-      )}
+
+            {isUnitExpanded && (
+              <div className="mt-4 space-y-4">
+                {/* Images Section */}
+                {unit.images?.length > 0 && (
+                  <div>
+                    <div
+                      className="flex justify-between items-center bg-gray-100 p-2 rounded cursor-pointer"
+                      onClick={() => toggleImages(unit.unitCode)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <FaFile className="text-blue-500" /> Images (
+                        {unit.images.length})
+                      </div>
+                      {isImagesExpanded ? <FaChevronUp /> : <FaChevronDown />}
+                    </div>
+                    {isImagesExpanded && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
+                        {unit.images.map((img) => (
+                          <div
+                            key={img.id}
+                            className="bg-gray-50 rounded-lg p-3 shadow-md hover:shadow-lg transition"
+                          >
+                            <div className="mb-2 overflow-hidden rounded-lg">
+                              <ProfileAvatar
+                                rounded={false}
+                                profilePic={img.filename}
+                                className="w-full"
+                              />
+                            </div>
+                            <p className="text-sm text-gray-500">
+                              {formatDate(img.uploadedAt)}
+                            </p>
+                            {img.description && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                {img.description}
+                              </p>
+                            )}
+                            <button
+                              onClick={() => openPreview(img)}
+                              className="mt-2 w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                            >
+                              <FaDownload /> View Full Size
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Videos Section */}
+                {((unit.videos?.length || 0) > 0 || videos.length > 0) && (
+                  <div>
+                    <div
+                      className="flex justify-between items-center bg-gray-100 p-2 rounded cursor-pointer"
+                      onClick={() => toggleVideos(unit.unitCode)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <FaVideo className="text-red-500" /> Videos (
+                        {unit.videos?.length || videos.length})
+                      </div>
+                      {isVideosExpanded ? <FaChevronUp /> : <FaChevronDown />}
+                    </div>
+
+                    {isVideosExpanded && (
+                      <>
+                        {!videos.length ? (
+                          <button
+                            onClick={() => loadVideos(unit.unitCode)}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg mt-2"
+                          >
+                            Load Videos
+                          </button>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
+                            {videos.map((vid) => (
+                              <div
+                                key={vid.id}
+                                className="bg-gray-50 rounded-lg p-3 shadow-md hover:shadow-lg transition"
+                              >
+                                <Video
+                                  videoSrc={vid.filename}
+                                  className="w-full h-48 object-cover rounded-lg mb-2"
+                                />
+                                <p className="text-sm text-gray-500">
+                                  {formatDate(vid.uploadedAt)}
+                                </p>
+                                {vid.description && (
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    {vid.description}
+                                  </p>
+                                )}
+                                <button
+                                  onClick={() => openPreview(vid)}
+                                  className="mt-2 w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                                >
+                                  <FaDownload /> View Full Size
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Modal */}
+      <Modal isOpen={isModalOpen} setIsOpen={setIsModalOpen}>
+        {previewFile && (
+          <div className="flex flex-col items-center w-full">
+            {previewFile.evidenceType === "image" ? (
+              <ProfileAvatar
+                profilePic={previewFile.filename}
+                className="max-h-[70vh] w-full object-contain rounded-lg"
+              />
+            ) : (
+              <Video
+                videoSrc={previewFile.filename}
+                className="max-h-[70vh] w-full object-contain rounded-lg"
+              />
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

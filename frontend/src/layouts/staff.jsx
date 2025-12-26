@@ -14,6 +14,7 @@ import {
 import useAuth from "../hooks/useAuth";
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import ProfileAvatar from "../components/ProfileAvator";
 
 const admin = () => {
   const { user, logout } = useAuth();
@@ -51,11 +52,11 @@ const admin = () => {
             <p className="text-sm font-medium text-gray-700">{email}</p>
             <p className="text-xs text-gray-500">Staff</p>
           </div>
-          <div className="rounded-full">
-            <img
-              className="h-10 w-10 rounded-full object-cover"
-              src={`http://localhost:5000/${encodeURIComponent(profilePic)}`}
-              alt="profile"
+         <div className="rounded-full h-10 w-10 overflow-hidden">
+            <ProfileAvatar
+              profilePic={profilePic}
+              rounded={true}
+              className="border border-gray-200 h-full w-full"
             />
           </div>
         </div>

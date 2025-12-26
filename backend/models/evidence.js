@@ -11,21 +11,21 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
       },
       studentId: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING,
         allowNull: false,
         references: {
           model: "Users",
-          key: "id",
+          key: "userId",
         },
         onDelete: "CASCADE",
         onUpdate: "CASCADE",
       },
-      unitId: {
-        type: DataTypes.INTEGER,
+      unitCode: {
+        type: DataTypes.STRING,
         allowNull: false,
         references: {
           model: "Units",
-          key: "unitId",
+          key: "unitCode",
         },
         onDelete: "CASCADE",
         onUpdate: "CASCADE",
@@ -59,7 +59,7 @@ module.exports = (sequelize, DataTypes) => {
 
   Evidence.associate = (models) => {
     Evidence.belongsTo(models.User, { foreignKey: "studentId", as: "User" });
-    Evidence.belongsTo(models.Unit, { foreignKey: "unitId", as: "Unit" });
+    Evidence.belongsTo(models.Unit, { foreignKey: "unitCode", as: "Unit" });
   };
 
   return Evidence;
